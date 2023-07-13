@@ -60,13 +60,16 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
 
     async execute({ environment, image, run }: { environment: Environment<AWSECSEnvironmentData>, image: string, run: string }): Promise<ExecutionResult> {
         const { ecs } = this.dependencies
-
+        console.log(environment.data.uniqueExecutionId)
         const taskDefinition = await ecs.registerTaskDefinition({
+            family: environment.data.uniqueExecutionId,
             containerDefinitions: [{
                 image,
                 command: [run],
+                cpu: 128,
+                memory:256,
+                name: environment.data.uniqueExecutionId,
             }],
-            family: environment.data.uniqueExecutionId
         }).promise()
 
         const task = await ecs.runTask({
