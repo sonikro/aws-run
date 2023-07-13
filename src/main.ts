@@ -29,6 +29,10 @@ async function run(): Promise<void> {
       remoteEnvironment: awsRemoteEnvironment
     })
 
+    const [owner, repository] = process.env.GITHUB_REPOSITORY!.split("/")
+
+    const uniqueExecutionid = `${owner}-${repository}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_NUMBER}`
+    core.debug(`Using ${uniqueExecutionid} as uniqueExecutionid`)
 
     await runInRemoteEnvironment.run({
       image,
@@ -36,7 +40,7 @@ async function run(): Promise<void> {
       setupSettings: {
         vpcId,
         subnetId,
-        uniqueExecutionid: `${process.env.GITHUB_ACTION_REPOSITORY}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_NUMBER}`
+        uniqueExecutionid
       }
     })
 
