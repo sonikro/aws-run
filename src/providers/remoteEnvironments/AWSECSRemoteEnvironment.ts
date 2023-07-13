@@ -69,7 +69,7 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
             family: environment.data.uniqueExecutionId
         }).promise()
 
-        await ecs.runTask({
+        const task = await ecs.runTask({
             cluster: environment.data.clusterArn,
             launchType: "FARGATE",
             startedBy: "github-actions",
@@ -81,6 +81,8 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
             },
             taskDefinition: taskDefinition.taskDefinition!.family!
         }).promise()
+
+       return {exitCode: 0, output: JSON.stringify(task)}
 
     }
 
