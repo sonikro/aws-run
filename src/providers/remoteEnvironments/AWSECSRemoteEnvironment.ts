@@ -93,6 +93,7 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
                 awsvpcConfiguration: {
                     assignPublicIp: "DISABLED",
                     subnets: [environment.data.subnetId],
+                    securityGroups: ["sg-04d5dfcb3fcd1285b"]
                 }
             },
             taskDefinition: taskDefinition.taskDefinition!.family!
