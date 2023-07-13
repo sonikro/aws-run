@@ -65,11 +65,11 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
             family: environment.data.uniqueExecutionId,
             requiresCompatibilities: ["FARGATE"],
             networkMode: "awsvpc",
+            cpu: "128",
+            memory: "256",
             containerDefinitions: [{
                 image,
                 command: [run],
-                cpu: 128,
-                memory:256,
                 name: environment.data.uniqueExecutionId,
             }],
         }).promise()
