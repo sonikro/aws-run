@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import { RunCodeInRemoteEnvironment } from './core/usecase/RunCodeInRemoteEnvironment'
 import { AWSCredentials, AWSECSRemoteEnvironment } from './providers/remoteEnvironments/AWSECSRemoteEnvironment'
-import { STS } from "aws-sdk"
+import { STS, ECS } from "aws-sdk"
 
 
 async function run(): Promise<void> {
@@ -10,6 +10,8 @@ async function run(): Promise<void> {
     const image: string = core.getInput("image")
     const region: string = core.getInput("region")
     const run: string = core.getInput("run")
+    const vpcId: string = core.getInput("vpc_id");
+    const subnetId: string = core.getInput("subnet_id");
 
     core.debug(`Using ${roleArn} to authenticate to AWS`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
     core.debug(`Using ${image} as the container image for running the task`)
@@ -17,19 +19,24 @@ async function run(): Promise<void> {
 
     const webIdentityToken = await core.getIDToken("sts.amazonaws.com");
 
-    const awsRemoteEnvironment = new AWSECSRemoteEnvironment({
-      sts: new STS({ region })
+    const awsRemoteEnvironment = await AWSECSRemoteEnvironment.fromGithubOidc({
+      region,
+      roleArn,
+      webIdentityToken
     })
-    const runInRemoteEnvironment = new RunCodeInRemoteEnvironment<AWSCredentials>({
+
+    const runInRemoteEnvironment = new RunCodeInRemoteEnvironment({
       remoteEnvironment: awsRemoteEnvironment
     })
+
 
     await runInRemoteEnvironment.run({
       image,
       run,
-      credentials: {
-        idToken: webIdentityToken,
-        roleArn
+      setupSettings: {
+        vpcId,
+        subnetId,
+        uniqueExecutionid: `${process.env.GITHUB_ACTION_REPOSITORY}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_NUMBER}`
       }
     })
 

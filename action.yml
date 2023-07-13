@@ -15,6 +15,12 @@ inputs:
   run:
     required: true
     description: Script that will be executed in the remote environment
+  subnet_id:
+    required: true
+    description: Subnet ID of where the Task will be executed
+  vpc_id:
+    required: true
+    description: VPC ID of where the Task will be executed
   
 runs:
   using: 'node16'
