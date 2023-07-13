@@ -91,7 +91,7 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
             startedBy: "github-actions",
             networkConfiguration: {
                 awsvpcConfiguration: {
-                    assignPublicIp: "DISABLED",
+                    assignPublicIp: "ENABLED",
                     subnets: [environment.data.subnetId],
                     securityGroups: ["sg-04d5dfcb3fcd1285b"]
                 }
