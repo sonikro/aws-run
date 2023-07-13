@@ -8,6 +8,13 @@ inputs:
   image:
     required: true
     description: Name of the docker container to be used for the step execution
+  region:
+    required: true
+    description: AWS Region to execute the operations
+    default: us-east-1
+  run:
+    required: true
+    description: Script that will be executed in the remote environment
   
 runs:
   using: 'node16'

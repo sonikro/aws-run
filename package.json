@@ -26,7 +26,8 @@
   "author": "Jonathan Nagayoshi @sonikro",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.10.0"
+    "@actions/core": "^1.10.0",
+    "aws-sdk": "^2.1414.0"
   },
   "devDependencies": {
     "@types/node": "^18.16.3",
