@@ -1,11 +1,14 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'aws-run'
+description: 'Runs a shellscript inside of an AWS VPC'
+author: 'Jonathan Nagayoshi'
 inputs:
-  milliseconds: # change this
+  role_arn:
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: 'Role ARN to be used to create/execute the required infrastructure on AWS'
+  image:
+    required: true
+    description: Name of the docker container to be used for the step execution
+  
 runs:
   using: 'node16'
   main: 'dist/index.js'
