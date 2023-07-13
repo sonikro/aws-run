@@ -22,7 +22,8 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<STS.Credential
         const response = await sts.assumeRoleWithWebIdentity({
             WebIdentityToken: credentials.idToken,
             RoleArn: credentials.roleArn,
-            RoleSessionName: "GithubActions-aws-run"
+            RoleSessionName: "GithubActions",
+            DurationSeconds: 3600,
         }).promise()
 
         return response.Credentials!
