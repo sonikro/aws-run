@@ -26,3 +26,6 @@ jobs:
         with:
           role_arn: "${{secrets.TEST_ROLE_ARN}}"
           image: ubuntu:latest
+          region: us-east-1
+          run: |
+            echo 'hello-world'

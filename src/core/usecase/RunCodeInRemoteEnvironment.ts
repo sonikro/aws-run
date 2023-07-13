@@ -32,7 +32,6 @@ export class RunCodeInRemoteEnvironment<Credentials> implements UseCase<RunCodeI
 
             return { executionResult: result }
         } catch (error) {
-            console.error(error)
             throw error
         } finally {
             await remoteEnvironment.tearDown(authSession)
