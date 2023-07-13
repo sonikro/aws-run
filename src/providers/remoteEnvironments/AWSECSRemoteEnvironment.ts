@@ -64,6 +64,7 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
         const taskDefinition = await ecs.registerTaskDefinition({
             family: environment.data.uniqueExecutionId,
             requiresCompatibilities: ["FARGATE"],
+            networkMode: "awsvpc",
             containerDefinitions: [{
                 image,
                 command: [run],
