@@ -26,9 +26,9 @@ jobs:
       - uses: ./
         with:
           role_arn: "${{secrets.TEST_ROLE_ARN}}"
-          image: ubuntu:latest
+          image: curlimages/curl:latest
           region: us-east-1
           run: |
-            echo 'hello-world'
+            curl -v https://google.com
           vpc_id: "${{secrets.TEST_VPC_ID}}"
           subnet_id: "${{secrets.TEST_SUBNET_ID}}"

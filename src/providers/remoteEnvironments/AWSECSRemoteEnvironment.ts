@@ -71,6 +71,15 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
                 image,
                 command: [run],
                 name: environment.data.uniqueExecutionId,
+                logConfiguration: {
+                    logDriver: "awslogs",
+                    options: {
+                        "awslogs-create-group": "true",
+                        "awslogs-group": AWSECSRemoteEnvironment.CLUSTER_NAME,
+                        "awslogs-region": ecs.config.region!,
+                        "awslogs-stream-prefix": "aws-run-logs"
+                    }
+                }
             }],
         }).promise()
 
