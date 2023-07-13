@@ -65,8 +65,8 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
             family: environment.data.uniqueExecutionId,
             requiresCompatibilities: ["FARGATE"],
             networkMode: "awsvpc",
-            cpu: "128",
-            memory: "256",
+            cpu: "256",
+            memory: "512",
             containerDefinitions: [{
                 image,
                 command: [run],
@@ -87,7 +87,7 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
             taskDefinition: taskDefinition.taskDefinition!.family!
         }).promise()
 
-       return {exitCode: 0, output: JSON.stringify(task)}
+        return { exitCode: 0, output: JSON.stringify(task) }
 
     }
 
