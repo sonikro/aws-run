@@ -18,6 +18,9 @@ inputs:
   run:
     required: true
     description: Script that will be executed in the remote environment
+  shell:
+    required: true
+    description: Name of the shell to be used in the container to execute the run script
   subnet_id:
     required: true
     description: Subnet ID of where the Task will be executed
