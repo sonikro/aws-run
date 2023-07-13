@@ -29,6 +29,7 @@ jobs:
           execution_role_arn: "${{secrets.TEST_ROLE_ARN}}"
           image: curlimages/curl:latest
           region: us-east-1
+          shell: sh
           run: |
             curl -v https://google.com
           vpc_id: "${{secrets.TEST_VPC_ID}}"

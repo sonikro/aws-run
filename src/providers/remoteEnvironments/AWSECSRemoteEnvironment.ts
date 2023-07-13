@@ -15,6 +15,7 @@ export interface AWSECSRemoteEnvironmentSetupSettings {
     subnetId: string;
     uniqueExecutionId: string;
     executionRoleArn: string;
+    shell: string;
 }
 
 export type AWSECSEnvironmentData = ECS.Cluster & AWSECSRemoteEnvironmentSetupSettings
@@ -71,6 +72,7 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
             executionRoleArn: environment.data.executionRoleArn,
             containerDefinitions: [{
                 image,
+                entryPoint: [environment.data.shell, "-c"],
                 command: [run],
                 name: environment.data.uniqueExecutionId,
                 logConfiguration: {
@@ -96,7 +98,8 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
                     securityGroups: ["sg-04d5dfcb3fcd1285b"]
                 }
             },
-            taskDefinition: taskDefinition.taskDefinition!.family!
+            taskDefinition: taskDefinition.taskDefinition!.family!,
+
         }).promise()
 
         return { exitCode: 0, output: JSON.stringify(task) }

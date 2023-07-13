@@ -13,6 +13,8 @@ async function run(): Promise<void> {
     const run: string = core.getInput("run")
     const vpcId: string = core.getInput("vpc_id");
     const subnetId: string = core.getInput("subnet_id");
+    const shell: string = core.getInput("shell");
+
 
     core.debug(`Using ${roleArn} to authenticate to AWS`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
     core.debug(`Using ${image} as the container image for running the task`)
@@ -42,7 +44,8 @@ async function run(): Promise<void> {
         vpcId,
         subnetId,
         uniqueExecutionId,
-        executionRoleArn
+        executionRoleArn,
+        shell
       }
     })
 
