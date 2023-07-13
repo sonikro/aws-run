@@ -26,6 +26,7 @@ jobs:
       - uses: ./
         with:
           role_arn: "${{secrets.TEST_ROLE_ARN}}"
+          execution_role_arn: "${{secrets.TEST_ROLE_ARN}}"
           image: curlimages/curl:latest
           region: us-east-1
           run: |

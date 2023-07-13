@@ -5,6 +5,9 @@ inputs:
   role_arn:
     required: true
     description: 'Role ARN to be used to create/execute the required infrastructure on AWS'
+  execution_role_arn:
+    required: true
+    description: 'Role ARN to be used to as execution role for the ECS Task that will run the script'
   image:
     required: true
     description: Name of the docker container to be used for the step execution

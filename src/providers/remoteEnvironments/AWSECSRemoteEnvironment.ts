@@ -14,6 +14,7 @@ export interface AWSECSRemoteEnvironmentSetupSettings {
     vpcId: string;
     subnetId: string;
     uniqueExecutionId: string;
+    executionRoleArn: string;
 }
 
 export type AWSECSEnvironmentData = ECS.Cluster & AWSECSRemoteEnvironmentSetupSettings
@@ -67,6 +68,7 @@ export class AWSECSRemoteEnvironment implements RemoteEnvironment<AWSECSEnvironm
             networkMode: "awsvpc",
             cpu: "256",
             memory: "512",
+            executionRoleArn: environment.data.executionRoleArn,
             containerDefinitions: [{
                 image,
                 command: [run],

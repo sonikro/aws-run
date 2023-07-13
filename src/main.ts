@@ -7,6 +7,7 @@ import { STS, ECS } from "aws-sdk"
 async function run(): Promise<void> {
   try {
     const roleArn: string = core.getInput('role_arn')
+    const executionRoleArn: string = core.getInput('execution_role_arn')
     const image: string = core.getInput("image")
     const region: string = core.getInput("region")
     const run: string = core.getInput("run")
@@ -40,7 +41,8 @@ async function run(): Promise<void> {
       settings: {
         vpcId,
         subnetId,
-        uniqueExecutionId
+        uniqueExecutionId,
+        executionRoleArn
       }
     })
 
