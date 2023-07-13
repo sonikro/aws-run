@@ -37,7 +37,7 @@ async function run(): Promise<void> {
     await runInRemoteEnvironment.run({
       image,
       run,
-      setupSettings: {
+      settings: {
         vpcId,
         subnetId,
         uniqueExecutionid

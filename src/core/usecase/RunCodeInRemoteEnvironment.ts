@@ -8,7 +8,7 @@ export interface RunCodeInRemoteEnvironmentDependencies {
 export interface RunCodeInRemoteEnvironmentInput<SetupSettings> {
     run: string;
     image: string;
-    setupSettings: SetupSettings;
+    settings: SetupSettings;
 }
 
 export interface RunCodeInRemoteEnvironmentOutput {
@@ -22,12 +22,12 @@ export class RunCodeInRemoteEnvironment<SetupSettings> implements UseCase<RunCod
     async run(input: RunCodeInRemoteEnvironmentInput<SetupSettings>): Promise<RunCodeInRemoteEnvironmentOutput> {
 
         const { remoteEnvironment } = this.dependencies;
-        const { image, run, setupSettings } = input;
+        const { image, run, settings } = input;
         let environment: Environment<any> | undefined
 
         try {
 
-            environment = await remoteEnvironment.setup({ settings: setupSettings });
+            environment = await remoteEnvironment.setup({ settings });
             const result = await remoteEnvironment.execute({ environment, image, run });
 
             return { executionResult: result }
