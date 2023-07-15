@@ -1,0 +1,36 @@
+name: 'aws-run'
+description: 'Runs a shellscript inside of an AWS VPC'
+author: 'Jonathan Nagayoshi'
+inputs:
+  role_arn:
+    required: true
+    description: 'Role ARN to be used to create/execute the required infrastructure on AWS'
+  execution_role_arn:
+    required: true
+    description: 'Role ARN to be used to as execution role for the ECS Task that will run the script'
+  image:
+    required: true
+    description: Name of the docker container to be used for the step execution
+  region:
+    required: true
+    description: AWS Region to execute the operations
+    default: us-east-1
+  security_group_id:
+    required: true
+    description: Security Group to be used by the ECS Task
+  run:
+    required: true
+    description: Script that will be executed in the remote environment
+  shell:
+    required: true
+    description: Name of the shell to be used in the container to execute the run script
+  subnet_id:
+    required: true
+    description: Subnet ID of where the Task will be executed
+  vpc_id:
+    required: true
+    description: VPC ID of where the Task will be executed
+  
+runs:
+  using: 'node16'
+  main: 'dist/index.js'

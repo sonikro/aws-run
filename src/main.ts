@@ -1,0 +1,64 @@
+import * as core from '@actions/core'
+import {RunCodeInRemoteEnvironment} from './core/usecase/RunCodeInRemoteEnvironment'
+import {AWSECSRemoteEnvironment} from './providers/remoteEnvironments/AWSECSRemoteEnvironment'
+
+async function run(): Promise<void> {
+  try {
+    const roleArn: string = core.getInput('role_arn')
+    const executionRoleArn: string = core.getInput('execution_role_arn')
+    const image: string = core.getInput('image')
+    const region: string = core.getInput('region')
+    const runScript: string = core.getInput('run')
+    const vpcId: string = core.getInput('vpc_id')
+    const subnetId: string = core.getInput('subnet_id')
+    const shell: string = core.getInput('shell')
+    const securityGroupId: string = core.getInput('security_group_id')
+
+    core.debug(`Using ${roleArn} to authenticate to AWS`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
+    core.debug(`Using ${image} as the container image for running the task`)
+    core.debug(`Using ${region} as the AWS Region for operations`)
+
+    const webIdentityToken = await core.getIDToken('sts.amazonaws.com')
+
+    const awsRemoteEnvironment = await AWSECSRemoteEnvironment.fromGithubOidc({
+      region,
+      roleArn,
+      webIdentityToken
+    })
+
+    const runInRemoteEnvironment = new RunCodeInRemoteEnvironment({
+      remoteEnvironment: awsRemoteEnvironment
+    })
+
+    const [owner, repository] = process.env.GITHUB_REPOSITORY!.split('/')
+
+    const uniqueExecutionId = `${owner}-${repository}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_NUMBER}-${process.env.GITHUB_RUN_ATTEMPT}`
+    core.debug(`Using ${uniqueExecutionId} as uniqueExecutionid`)
+
+    const {executionResult} = await runInRemoteEnvironment.run({
+      image,
+      run: runScript,
+      settings: {
+        vpcId,
+        subnetId,
+        uniqueExecutionId,
+        executionRoleArn,
+        s3AccessRoelArn: roleArn,
+        taskRoleArn: roleArn,
+        shell,
+        securityGroupId
+      }
+    })
+
+    if (executionResult.exitCode !== 0) {
+      core.setFailed(`Remote execution failed. Check the logs`)
+    }
+
+    executionResult.output.forEach(log => console.log(log))
+  } catch (error) {
+    if (error instanceof Error) core.setFailed(error.message)
+    core.debug(JSON.stringify(error))
+  }
+}
+
+run()

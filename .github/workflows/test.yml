@@ -1,0 +1,39 @@
+name: 'build-test'
+on: # rebuild any PRs and main branch changes
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'releases/*'
+
+jobs:
+  build: # make sure build/ci work properly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          npm install
+      - run: |
+          npm run all
+  test: # make sure the action works on a clean machine without building
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: ./
+        with:
+          role_arn: "${{secrets.TEST_ROLE_ARN}}"
+          execution_role_arn: "${{secrets.TEST_ROLE_ARN}}"
+          image: hashicorp/terraform:latest
+          region: us-east-1
+          vpc_id: "${{secrets.TEST_VPC_ID}}"
+          subnet_id: "${{secrets.TEST_SUBNET_ID}}"
+          security_group_id: sg-04d5dfcb3fcd1285b
+          shell: sh
+          run: |
+            ls -la
+            terraform -v
+            echo "Hello World. I am ${{github.repository}}"
