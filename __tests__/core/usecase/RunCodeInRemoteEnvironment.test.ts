@@ -3,12 +3,12 @@ import {
   RunCodeInRemoteEnvironment,
   RunCodeInRemoteEnvironmentDependencies,
   RunCodeInRemoteEnvironmentInput
-} from './RunCodeInRemoteEnvironment'
+} from '../../../src/core/usecase/RunCodeInRemoteEnvironment'
 import {
   Environment,
   ExecutionResult,
   RemoteEnvironment
-} from '../provider/RemoteEnvironment'
+} from '../../../src/core/provider/RemoteEnvironment'
 
 describe('RunCodeInRemoteEnvironment use case', () => {
   const makeSut = () => {
