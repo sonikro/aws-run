@@ -265,12 +265,13 @@ export class AWSECSRemoteEnvironment
       })
       .promise()
 
-    this.tearDownQueue.push(async () =>
-      ecs
-        .deregisterTaskDefinition({
-          taskDefinition: `${taskDefinition.taskDefinition!.family!}:1`
-        })
-        .promise()
+    this.tearDownQueue.push(
+      async () =>
+        await ecs
+          .deregisterTaskDefinition({
+            taskDefinition: `${taskDefinition.taskDefinition!.family!}:1`
+          })
+          .promise()
     )
 
     return taskDefinition.taskDefinition!
@@ -418,7 +419,7 @@ export class AWSECSRemoteEnvironment
 
     await this.uploadDir(runnerWorkspaceFolder, bucketName)
 
-    this.tearDownQueue.push(async () => this.deleteBucket(bucketName))
+    this.tearDownQueue.push(async () => await this.deleteBucket(bucketName))
 
     return bucketName
   }
@@ -451,14 +452,9 @@ export class AWSECSRemoteEnvironment
   }
 
   async tearDown(): Promise<void> {
-    console.log(`Calling all ${this.tearDownQueue.length} tearDown functions`)
-    try {
-      await Promise.all(this.tearDownQueue.map(async tearDown => tearDown()))
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error(`Error tearing down. ${error.message}`)
-      }
-    }
+    await Promise.all(
+      this.tearDownQueue.map(async tearDown => await tearDown())
+    )
   }
 
   protected async deleteBucket(bucketName: string): Promise<void> {

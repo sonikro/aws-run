@@ -62,7 +62,6 @@ async function run(): Promise<void> {
       core.setFailed('Failed to run aws-run action')
     }
     core.debug(JSON.stringify(error))
-    process.exit(1)
   }
 }
 
