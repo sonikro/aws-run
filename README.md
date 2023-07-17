@@ -101,7 +101,8 @@ The policy attattched to this role must have at least these permissions:
                 "ecr:GetDownloadUrlForLayer",
                 "ecr:BatchGetImage",
                 "logs:CreateLogStream",
-                "logs:PutLogEvents"
+                "logs:PutLogEvents",
+                "logs:DeleteLogStream"
             ],
             "Resource": "*"
         }
@@ -174,9 +175,9 @@ In the execution phase, the action will:
 
 - [ ] Come up with a more restrictive IAM Policy Example
 - [ ] Add more parameters to allow customizing the CPU and Memory of the container 
-- [ ] Delete the Cloudwatch Logstream on Teardown
+- [X] Delete the Cloudwatch Logstream on Teardown
 - [ ] Allow multiple Subnet IDs
-- [ ] Stream the Cloudwatch logs as they happen, and not just at the end of the execution
+- [X] Stream the Cloudwatch logs as they happen, and not just at the end of the execution
 - [ ] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
 
 ## Developing the action locally
