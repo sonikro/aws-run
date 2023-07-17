@@ -169,8 +169,6 @@ In the execution phase, the action will:
 
 > Currently the ECS Cluster is not deleted, as it can be reused with no additional cost.
 
-> Pending: Delete the Cloudwatch Logstream
-
 ## TO-DO
 
 - [ ] Come up with a more restrictive IAM Policy Example
