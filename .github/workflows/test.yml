@@ -35,5 +35,7 @@ jobs:
           shell: sh
           run: |
             ls -la
+            sleep 5
             terraform -v
+            sleep 5
             echo "Hello World. I am ${{github.repository}}"
