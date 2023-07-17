@@ -1,6 +1,9 @@
 import * as core from '@actions/core'
 import {RunCodeInRemoteEnvironment} from './core/usecase/RunCodeInRemoteEnvironment'
-import {AWSECSRemoteEnvironment} from './providers/remoteEnvironments/AWSECSRemoteEnvironment'
+import {
+  AWSECSRemoteEnvironment,
+  ECSExecutionSettings
+} from './providers/remoteEnvironments/AWSECSRemoteEnvironment'
 
 async function run(): Promise<void> {
   try {
@@ -35,10 +38,10 @@ async function run(): Promise<void> {
     const uniqueExecutionId = `${owner}-${repository}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_NUMBER}-${process.env.GITHUB_RUN_ATTEMPT}`
     core.debug(`Using ${uniqueExecutionId} as uniqueExecutionid`)
 
-    const {executionResult} = await runInRemoteEnvironment.run({
-      image,
-      run: runScript,
-      settings: {
+    const executionResult =
+      await runInRemoteEnvironment.run<ECSExecutionSettings>({
+        image,
+        run: runScript,
         vpcId,
         subnetId,
         uniqueExecutionId,
@@ -47,14 +50,11 @@ async function run(): Promise<void> {
         taskRoleArn: roleArn,
         shell,
         securityGroupId
-      }
-    })
+      })
 
     if (executionResult.exitCode !== 0) {
       core.setFailed(`Remote execution failed. Check the logs`)
     }
-
-    executionResult.output.forEach(log => console.log(log))
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
     core.debug(JSON.stringify(error))

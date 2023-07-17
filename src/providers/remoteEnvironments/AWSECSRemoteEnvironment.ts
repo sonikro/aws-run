@@ -1,13 +1,13 @@
 import {CloudWatchLogs, ECS, S3, STS} from 'aws-sdk'
-import {
-  Environment,
-  ExecutionResult,
-  RemoteEnvironment
-} from '../../core/provider/RemoteEnvironment'
 import {ContainerDefinition} from 'aws-sdk/clients/ecs'
+import {createReadStream} from 'fs'
 import {readdir} from 'fs/promises'
 import path from 'path'
-import {createReadStream} from 'fs'
+import {
+  ExecutionResult,
+  ExecutionSettings,
+  RemoteEnvironment
+} from '../../core/provider/RemoteEnvironment'
 
 export interface AWSCredentials {
   roleArn: string
@@ -20,7 +20,7 @@ export interface AWSECSRemoteEnvironmentDependencies {
   s3: S3
 }
 
-export interface AWSECSRemoteEnvironmentSetupSettings {
+export interface ECSExecutionSettings extends ExecutionSettings {
   vpcId: string
   subnetId: string
   uniqueExecutionId: string
@@ -31,19 +31,20 @@ export interface AWSECSRemoteEnvironmentSetupSettings {
   securityGroupId: string
 }
 
-export interface AWSECSEnvironmentData
-  extends ECS.Cluster,
-    AWSECSRemoteEnvironmentSetupSettings {
-  workspaceS3Bucket: string
+export interface ECSTaskExecutionResult extends ExecutionResult {
+  ecsCluster: ECS.Cluster
+  ecsTask: ECS.Task
+  ecsTaskDefinition: ECS.TaskDefinition
+  s3WorkspaceBucket: string
 }
+
+export type TeardownFunction = () => Promise<any>
 export class AWSECSRemoteEnvironment
-  implements
-    RemoteEnvironment<
-      AWSECSEnvironmentData,
-      AWSECSRemoteEnvironmentSetupSettings
-    >
+  implements RemoteEnvironment<ECSExecutionSettings>
 {
   static readonly CLUSTER_NAME = 'github-actions-aws-run'
+
+  private readonly tearDownQueue: TeardownFunction[] = []
 
   static async fromGithubOidc({
     region,
@@ -93,37 +94,85 @@ export class AWSECSRemoteEnvironment
     private readonly dependencies: AWSECSRemoteEnvironmentDependencies
   ) {}
 
-  async setup({
+  /**
+   * Execute script in remote ECS Task environment
+   */
+  async execute({
     settings
   }: {
-    settings: AWSECSRemoteEnvironmentSetupSettings
-  }): Promise<Environment<AWSECSEnvironmentData>> {
-    const ecsCluster = await this.getOrCreateCluster()
+    settings: ECSExecutionSettings
+  }): Promise<ECSTaskExecutionResult> {
+    const {ecs} = this.dependencies
 
+    // Setup Environment
+    const ecsCluster = await this.setupECSCluster()
+    const s3Workspace = await this.setupS3Workspace({settings})
+    const taskDefinition = await this.createTaskDefinition({
+      settings,
+      s3Workspace
+    })
+    // Start Remote Execution
+    const executionTask = await this.startTask({
+      ecsCluster,
+      settings,
+      taskDefinition
+    })
+    await ecs
+      .waitFor('tasksRunning', {
+        tasks: [executionTask.taskArn!],
+        cluster: ecsCluster.clusterArn
+      })
+      .promise()
+
+    // Listen for logs until task reaches stopped status
+    const stoppedTask = await this.streamLogsUntilStopped({
+      taskArn: executionTask.taskArn!,
+      taskDefinition,
+      settings
+    })
+    // Wait for task to stop
+
+    const mainContainer = stoppedTask.containers!.find(
+      it => it.name === settings.uniqueExecutionId
+    )!
+
+    const exitCode = mainContainer.exitCode!
+
+    return {
+      exitCode,
+      ecsCluster,
+      ecsTask: stoppedTask,
+      ecsTaskDefinition: taskDefinition,
+      s3WorkspaceBucket: s3Workspace
+    }
+  }
+
+  protected async setupECSCluster(): Promise<ECS.Cluster> {
+    const ecsCluster = await this.getOrCreateCluster()
+    return ecsCluster
+  }
+
+  protected async setupS3Workspace({
+    settings
+  }: {
+    settings: ECSExecutionSettings
+  }): Promise<string> {
     const bucketWithWorkspace = await this.uploadWorkspaceToS3(
       `aws-run-${settings.uniqueExecutionId}-workspace`,
       settings.s3AccessRoelArn
     )
 
-    return {
-      data: {
-        ...ecsCluster,
-        ...settings,
-        workspaceS3Bucket: bucketWithWorkspace
-      }
-    }
+    return bucketWithWorkspace
   }
 
-  async execute({
-    environment,
-    image,
-    run
+  protected async createTaskDefinition({
+    settings,
+    s3Workspace
   }: {
-    environment: Environment<AWSECSEnvironmentData>
-    image: string
-    run: string
-  }): Promise<ExecutionResult> {
-    const {ecs, cloudwatchLogs} = this.dependencies
+    settings: ECSExecutionSettings
+    s3Workspace: string
+  }): Promise<ECS.TaskDefinition> {
+    const {ecs} = this.dependencies
 
     const awsLogsParameters = {
       'awslogs-create-group': 'true',
@@ -132,19 +181,19 @@ export class AWSECSRemoteEnvironment
       'awslogs-stream-prefix': 'aws-run-logs'
     }
 
-    const unifiedCommand = run.split('\n').join(' && ')
+    const unifiedCommand = settings.run.split('\n').join(' && ')
 
     const workspaceVolumeName = 'runner-workspace'
     const workspaceContainerName = 'workspace'
     const workspaceContainerPath = '/workspace'
 
     const mainContainerDefinition: ContainerDefinition = {
-      image,
+      image: settings.image,
       essential: true,
-      entryPoint: [environment.data.shell, '-c'],
+      entryPoint: [settings.shell, '-c'],
       command: [unifiedCommand],
       workingDirectory: workspaceContainerPath,
-      name: environment.data.uniqueExecutionId,
+      name: settings.uniqueExecutionId,
       logConfiguration: {
         logDriver: 'awslogs',
         options: awsLogsParameters
@@ -168,7 +217,7 @@ export class AWSECSRemoteEnvironment
       image: 'amazon/aws-cli:2.13.1',
       essential: false,
       entryPoint: ['bash', '-c'],
-      command: [`aws s3 sync s3://${environment.data.workspaceS3Bucket} .`],
+      command: [`aws s3 sync s3://${s3Workspace} .`],
       workingDirectory: workspaceContainerPath,
       mountPoints: [
         {
@@ -184,13 +233,13 @@ export class AWSECSRemoteEnvironment
 
     const taskDefinition = await ecs
       .registerTaskDefinition({
-        family: environment.data.uniqueExecutionId,
+        family: settings.uniqueExecutionId,
         requiresCompatibilities: ['FARGATE'],
         networkMode: 'awsvpc',
         cpu: '256',
         memory: '512',
-        executionRoleArn: environment.data.executionRoleArn,
-        taskRoleArn: environment.data.taskRoleArn,
+        executionRoleArn: settings.executionRoleArn,
+        taskRoleArn: settings.taskRoleArn,
         volumes: [
           {
             name: workspaceVolumeName,
@@ -204,56 +253,120 @@ export class AWSECSRemoteEnvironment
       })
       .promise()
 
+    this.tearDownQueue.push(async () =>
+      ecs
+        .deregisterTaskDefinition({
+          taskDefinition: taskDefinition.taskDefinition!.family!
+        })
+        .promise()
+    )
+
+    return taskDefinition.taskDefinition!
+  }
+
+  protected async startTask({
+    taskDefinition,
+    ecsCluster,
+    settings
+  }: {
+    taskDefinition: ECS.TaskDefinition
+    ecsCluster: ECS.Cluster
+    settings: ECSExecutionSettings
+  }): Promise<ECS.Task> {
+    const {ecs} = this.dependencies
     const task = await ecs
       .runTask({
-        cluster: environment.data.clusterArn,
+        cluster: ecsCluster.clusterArn,
         launchType: 'FARGATE',
         startedBy: 'github-actions',
         networkConfiguration: {
           awsvpcConfiguration: {
             assignPublicIp: 'ENABLED',
-            subnets: [environment.data.subnetId],
-            securityGroups: [environment.data.securityGroupId]
+            subnets: [settings.subnetId],
+            securityGroups: [settings.securityGroupId]
           }
         },
-        taskDefinition: taskDefinition.taskDefinition!.family!
+        taskDefinition: taskDefinition.family!
       })
       .promise()
 
-    const executionTask = task.tasks![0]!
+    return task.tasks![0]!
+  }
 
-    console.log(`Remote Task triggered`)
-
-    // Wait for task to stop
-    const taskArn = executionTask.taskArn!
-
-    const taskResult = await ecs
-      .waitFor('tasksStopped', {
-        tasks: [taskArn],
-        cluster: environment.data.clusterArn
-      })
-      .promise()
-
-    console.log(`Task reached stopped status`)
+  protected async streamLogsUntilStopped({
+    taskArn,
+    taskDefinition,
+    settings
+  }: {
+    taskArn: string
+    taskDefinition: ECS.TaskDefinition
+    settings: ECSExecutionSettings
+  }): Promise<ECS.Task> {
+    const {cloudwatchLogs, ecs} = this.dependencies
 
     const taskId = taskArn.split(
       `:task/${AWSECSRemoteEnvironment.CLUSTER_NAME}/`
     )[1]
 
-    const logstreamName = `${awsLogsParameters['awslogs-stream-prefix']}/${environment.data.uniqueExecutionId}/${taskId}`
-    const logs = await cloudwatchLogs
-      .getLogEvents({
-        logStreamName: logstreamName,
-        logGroupName: awsLogsParameters['awslogs-group']
-      })
-      .promise()
+    const POLLING_INTERVAL = 2000
 
-    const exitCode = taskResult.tasks![0].containers![0].exitCode!
+    this.tearDownQueue.push(async () => {
+      await Promise.all(
+        taskDefinition.containerDefinitions!.map(async it => {
+          const logStreamName = `${
+            it.logConfiguration!.options!['awslogs-stream-prefix']
+          }/${settings.uniqueExecutionId}/${taskId}`
+          const logGroupName = it.logConfiguration!.options!['awslogs-group']
+          return cloudwatchLogs
+            .deleteLogStream({
+              logGroupName,
+              logStreamName
+            })
+            .promise()
+        })
+      )
+    })
 
-    return {exitCode, output: logs.events!.map(it => it.message!)}
+    return await new Promise<ECS.Task>(resolve => {
+      let nextToken: string | undefined
+
+      setInterval(async () => {
+        const mainContainerDefinition =
+          taskDefinition.containerDefinitions?.find(
+            it => (it.name = settings.uniqueExecutionId)
+          )!
+
+        const logstreamName = `${
+          mainContainerDefinition.logConfiguration!.options![
+            'awslogs-stream-prefix'
+          ]
+        }/${settings.uniqueExecutionId}/${taskId}`
+        const logGroup =
+          mainContainerDefinition.logConfiguration!.options!['awslogs-group']
+
+        const logs = await cloudwatchLogs
+          .getLogEvents({
+            logStreamName: logstreamName,
+            logGroupName: logGroup,
+            startFromHead: true,
+            nextToken
+          })
+          .promise()
+
+        nextToken = logs.nextForwardToken
+
+        logs.events?.forEach(console.log)
+
+        const taskState = await ecs.describeTasks({tasks: [taskArn]}).promise()
+
+        if (taskState.tasks![0]!.lastStatus === 'STOPPED') {
+          resolve(taskState.tasks![0]!)
+        }
+      }, POLLING_INTERVAL)
+    })
   }
 
-  async uploadWorkspaceToS3(
+  protected async uploadWorkspaceToS3(
     bucketName: string,
     accessRoleArn: string
   ): Promise<string> {
@@ -289,14 +402,14 @@ export class AWSECSRemoteEnvironment
 
     await this.uploadDir(runnerWorkspaceFolder, bucketName)
 
+    this.tearDownQueue.push(async () => this.deleteBucket(bucketName))
+
     return bucketName
   }
 
-  private async uploadDir(s3Path: string, bucketName: string): Promise<void> {
+  protected async uploadDir(s3Path: string, bucketName: string): Promise<void> {
     const {s3} = this.dependencies
 
-    // Recursive getFiles from
-    // https://stackoverflow.com/a/45130990/831465
     async function getFiles(dir: string): Promise<string | string[]> {
       const dirents = await readdir(dir, {withFileTypes: true})
       const files = await Promise.all(
@@ -321,28 +434,17 @@ export class AWSECSRemoteEnvironment
     await Promise.all(uploads)
   }
 
-  async tearDown({
-    environment
-  }: {
-    environment: Environment<AWSECSEnvironmentData>
-  }): Promise<void> {
-    const {ecs} = this.dependencies
-
+  async tearDown(): Promise<void> {
     try {
-      await this.deleteBucket(environment.data.workspaceS3Bucket)
-      await ecs
-        .deregisterTaskDefinition({
-          taskDefinition: `${environment.data.uniqueExecutionId}:1`
-        })
-        .promise()
+      await Promise.all(this.tearDownQueue.map(async tearDown => tearDown()))
     } catch (error) {
       if (error instanceof Error) {
-        console.log(`Error tearing down. ${error.message}`)
+        console.error(`Error tearing down. ${error.message}`)
       }
     }
   }
 
-  private async deleteBucket(bucketName: string): Promise<void> {
+  protected async deleteBucket(bucketName: string): Promise<void> {
     const {s3} = this.dependencies
 
     const allObjects = await s3.listObjectsV2({Bucket: bucketName}).promise()
@@ -356,7 +458,7 @@ export class AWSECSRemoteEnvironment
     await s3.deleteBucket({Bucket: bucketName}).promise()
   }
 
-  private async getOrCreateCluster(): Promise<ECS.Cluster> {
+  protected async getOrCreateCluster(): Promise<ECS.Cluster> {
     const {ecs} = this.dependencies
 
     const existingClusterResponse = await ecs
