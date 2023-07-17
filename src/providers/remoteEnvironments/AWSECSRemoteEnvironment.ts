@@ -369,7 +369,7 @@ export class AWSECSRemoteEnvironment
 
         nextToken = logs.nextForwardToken
 
-        logs.events?.map(it => it.message).forEach(console.log)
+        logs.events?.map(it => it.message).forEach(log => console.log(log))
 
         const taskState = await ecs
           .describeTasks({tasks: [taskArn], cluster: cluster.clusterName})
