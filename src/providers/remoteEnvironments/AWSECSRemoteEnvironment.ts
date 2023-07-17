@@ -105,18 +105,27 @@ export class AWSECSRemoteEnvironment
     const {ecs} = this.dependencies
 
     // Setup Environment
+    console.log('Setting up required infrastructure')
     const ecsCluster = await this.setupECSCluster()
+    console.log(`Using ECS Cluster ${ecsCluster.clusterArn}`)
+    console.log(
+      `Uploading runner workspace to S3 so it can be shared with the remote execution ECS Task`
+    )
     const s3Workspace = await this.setupS3Workspace({settings})
+    console.log(`Workspace uploaded successfully`)
+    console.log(`Creating task definition`)
     const taskDefinition = await this.createTaskDefinition({
       settings,
       s3Workspace
     })
+    console.log(`Starting ECS Task`)
     // Start Remote Execution
     const executionTask = await this.startTask({
       ecsCluster,
       settings,
       taskDefinition
     })
+    console.log(`Waiting until ECS Task is running`)
     await ecs
       .waitFor('tasksRunning', {
         tasks: [executionTask.taskArn!],
@@ -124,6 +133,7 @@ export class AWSECSRemoteEnvironment
       })
       .promise()
 
+    console.log(`Streaming Cloudwatch Logs until task reaches STOPPED state`)
     // Listen for logs until task reaches stopped status
     const stoppedTask = await this.streamLogsUntilStopped({
       taskArn: executionTask.taskArn!,
@@ -435,6 +445,7 @@ export class AWSECSRemoteEnvironment
   }
 
   async tearDown(): Promise<void> {
+    console.log(`Calling all ${this.tearDownQueue.length} tearDown functions`)
     try {
       await Promise.all(this.tearDownQueue.map(async tearDown => tearDown()))
     } catch (error) {
