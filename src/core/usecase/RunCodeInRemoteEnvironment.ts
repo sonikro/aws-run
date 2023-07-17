@@ -25,16 +25,12 @@ export class RunCodeInRemoteEnvironment
   ): Promise<ExecutionResult> {
     const {remoteEnvironment} = this.dependencies
 
-    let result: ExecutionResult | undefined
     try {
-      result = await remoteEnvironment.execute({settings})
-      return result
+      return await remoteEnvironment.execute({settings})
     } catch (error) {
       throw error
     } finally {
-      if (result) {
-        await remoteEnvironment.tearDown()
-      }
+      await remoteEnvironment.tearDown()
     }
   }
 }

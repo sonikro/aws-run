@@ -107,7 +107,7 @@ export class AWSECSRemoteEnvironment
     // Setup Environment
     console.log('Setting up required infrastructure')
     const ecsCluster = await this.setupECSCluster()
-    console.log(`Using ECS Cluster ${ecsCluster.clusterArn}`)
+    console.log(`Using ECS Cluster ${ecsCluster.clusterName}`)
     console.log(
       `Uploading runner workspace to S3 so it can be shared with the remote execution ECS Task`
     )
@@ -138,7 +138,8 @@ export class AWSECSRemoteEnvironment
     const stoppedTask = await this.streamLogsUntilStopped({
       taskArn: executionTask.taskArn!,
       taskDefinition,
-      settings
+      settings,
+      cluster: ecsCluster
     })
     // Wait for task to stop
 
@@ -286,7 +287,7 @@ export class AWSECSRemoteEnvironment
     const {ecs} = this.dependencies
     const task = await ecs
       .runTask({
-        cluster: ecsCluster.clusterArn,
+        cluster: ecsCluster.clusterName,
         launchType: 'FARGATE',
         startedBy: 'github-actions',
         networkConfiguration: {
@@ -306,8 +307,10 @@ export class AWSECSRemoteEnvironment
   protected async streamLogsUntilStopped({
     taskArn,
     taskDefinition,
-    settings
+    settings,
+    cluster
   }: {
+    cluster: ECS.Cluster
     taskArn: string
     taskDefinition: ECS.TaskDefinition
     settings: ECSExecutionSettings
@@ -365,9 +368,11 @@ export class AWSECSRemoteEnvironment
 
         nextToken = logs.nextForwardToken
 
-        logs.events?.forEach(console.log)
+        logs.events?.map(it => it.message).forEach(console.log)
 
-        const taskState = await ecs.describeTasks({tasks: [taskArn]}).promise()
+        const taskState = await ecs
+          .describeTasks({tasks: [taskArn], cluster: cluster.clusterName})
+          .promise()
 
         if (taskState.tasks![0]!.lastStatus === 'STOPPED') {
           resolve(taskState.tasks![0]!)
