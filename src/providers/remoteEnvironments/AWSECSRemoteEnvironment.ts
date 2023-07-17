@@ -346,7 +346,7 @@ export class AWSECSRemoteEnvironment
     return await new Promise<ECS.Task>(resolve => {
       let nextToken: string | undefined
 
-      setInterval(async () => {
+      const timer = setInterval(async () => {
         const mainContainerDefinition =
           taskDefinition.containerDefinitions?.find(
             it => (it.name = settings.uniqueExecutionId)
@@ -379,6 +379,7 @@ export class AWSECSRemoteEnvironment
 
         if (taskState.tasks![0]!.lastStatus === 'STOPPED') {
           resolve(taskState.tasks![0]!)
+          clearInterval(timer)
         }
       }, POLLING_INTERVAL)
     })
