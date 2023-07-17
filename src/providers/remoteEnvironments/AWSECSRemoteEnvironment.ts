@@ -330,7 +330,7 @@ export class AWSECSRemoteEnvironment
         taskDefinition.containerDefinitions!.map(async it => {
           const logStreamName = `${
             it.logConfiguration!.options!['awslogs-stream-prefix']
-          }/${settings.uniqueExecutionId}/${taskId}`
+          }/${it.name}/${taskId}`
           const logGroupName = it.logConfiguration!.options!['awslogs-group']
           return cloudwatchLogs
             .deleteLogStream({
