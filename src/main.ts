@@ -56,8 +56,13 @@ async function run(): Promise<void> {
       core.setFailed(`Remote execution failed. Check the logs`)
     }
   } catch (error) {
-    if (error instanceof Error) core.setFailed(error.message)
+    if (error instanceof Error) {
+      core.setFailed(error.message)
+    } else {
+      core.setFailed('Failed to run aws-run action')
+    }
     core.debug(JSON.stringify(error))
+    process.exit(1)
   }
 }
 

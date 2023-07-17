@@ -141,6 +141,7 @@ export class AWSECSRemoteEnvironment
       settings,
       cluster: ecsCluster
     })
+    console.log(`ECS Task execution completed`)
     // Wait for task to stop
 
     const mainContainer = stoppedTask.containers!.find(
@@ -267,7 +268,7 @@ export class AWSECSRemoteEnvironment
     this.tearDownQueue.push(async () =>
       ecs
         .deregisterTaskDefinition({
-          taskDefinition: taskDefinition.taskDefinition!.family!
+          taskDefinition: `${taskDefinition.taskDefinition!.family!}:1`
         })
         .promise()
     )
