@@ -332,7 +332,8 @@ export class AWSECSRemoteEnvironment
             it.logConfiguration!.options!['awslogs-stream-prefix']
           }/${it.name}/${taskId}`
           const logGroupName = it.logConfiguration!.options!['awslogs-group']
-          return cloudwatchLogs
+          console.log(`Deleting Logstream ${logGroupName}/${logStreamName}`)
+          return await cloudwatchLogs
             .deleteLogStream({
               logGroupName,
               logStreamName
@@ -460,6 +461,7 @@ export class AWSECSRemoteEnvironment
   protected async deleteBucket(bucketName: string): Promise<void> {
     const {s3} = this.dependencies
 
+    console.log(`Deleting Bucket ${bucketName}`)
     const allObjects = await s3.listObjectsV2({Bucket: bucketName}).promise()
 
     await Promise.all(
