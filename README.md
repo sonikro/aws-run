@@ -183,7 +183,7 @@ In the execution phase, the action will:
 - [ ] Map all GitHub Contexts/ENVS into the ECS Container
 - [ ] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
 - [ ] Find a way to map environment variables from the remote shell, back to the runner (after execution)
-
+- [ ] Change the TearDown step to run as a **post** action on GHA, so take advantages of errors/cancellations
 ## Developing the action locally
 
 
