@@ -26,7 +26,6 @@ jobs:
       - uses: ./
         with:
           role_arn: "${{secrets.TEST_ROLE_ARN}}"
-          execution_role_arn: "${{secrets.TEST_ROLE_ARN}}"
           image: hashicorp/terraform:latest
           region: us-east-1
           vpc_id: "${{secrets.TEST_VPC_ID}}"

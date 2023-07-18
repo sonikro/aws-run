@@ -8,7 +8,12 @@ import {
 async function run(): Promise<void> {
   try {
     const roleArn: string = core.getInput('role_arn')
-    const executionRoleArn: string = core.getInput('execution_role_arn')
+    const executionRoleArn: string = core.getInput('execution_role_arn', {
+      required: false
+    })
+    const taskRoleArn: string = core.getInput('task_role_arn', {
+      required: false
+    })
     const image: string = core.getInput('image')
     const region: string = core.getInput('region')
     const runScript: string = core.getInput('run')
@@ -45,9 +50,8 @@ async function run(): Promise<void> {
         vpcId,
         subnetId,
         uniqueExecutionId,
-        executionRoleArn,
-        s3AccessRoelArn: roleArn,
-        taskRoleArn: roleArn,
+        executionRoleArn: executionRoleArn !== '' ? executionRoleArn : roleArn,
+        taskRoleArn: taskRoleArn !== '' ? taskRoleArn : roleArn,
         shell,
         securityGroupId
       })
