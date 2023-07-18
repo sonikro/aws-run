@@ -171,7 +171,7 @@ In the execution phase, the action will:
 ## TO-DO
 
 - [ ] Come up with a more restrictive IAM Policy Example
-- [ ] Add more parameters to allow customizing the CPU and Memory of the container 
+- [X] Add more parameters to allow customizing the CPU and Memory of the container 
 - [X] Delete the Cloudwatch Logstream on Teardown
 - [ ] Allow multiple Subnet IDs
 - [X] Stream the Cloudwatch logs as they happen, and not just at the end of the execution

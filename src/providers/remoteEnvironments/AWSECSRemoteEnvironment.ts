@@ -29,6 +29,8 @@ export interface ECSExecutionSettings extends ExecutionSettings {
   taskRoleArn: string
   shell: string
   securityGroupId: string
+  memory: string
+  cpu: string
 }
 
 export interface ECSTaskExecutionResult extends ExecutionResult {
@@ -248,8 +250,8 @@ export class AWSECSRemoteEnvironment
         family: settings.uniqueExecutionId,
         requiresCompatibilities: ['FARGATE'],
         networkMode: 'awsvpc',
-        cpu: '256',
-        memory: '512',
+        cpu: settings.cpu,
+        memory: settings.memory,
         executionRoleArn: settings.executionRoleArn,
         taskRoleArn: settings.taskRoleArn,
         volumes: [
