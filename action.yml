@@ -39,9 +39,9 @@ inputs:
   shell:
     required: true
     description: Name of the shell to be used in the container to execute the run script
-  subnet_id:
+  subnet_ids:
     required: true
-    description: Subnet ID of where the Task will be executed
+    description: Subnet ID of where the Task will be executed.
   vpc_id:
     required: true
     description: VPC ID of where the Task will be executed

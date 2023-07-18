@@ -23,7 +23,7 @@ export interface AWSECSRemoteEnvironmentDependencies {
 
 export interface ECSExecutionSettings extends ExecutionSettings {
   vpcId: string
-  subnetId: string
+  subnetIds: string[]
   uniqueExecutionId: string
   executionRoleArn: string
   taskRoleArn: string
@@ -300,7 +300,7 @@ export class AWSECSRemoteEnvironment
         networkConfiguration: {
           awsvpcConfiguration: {
             assignPublicIp: 'ENABLED',
-            subnets: [settings.subnetId],
+            subnets: settings.subnetIds,
             securityGroups: [settings.securityGroupId]
           }
         },

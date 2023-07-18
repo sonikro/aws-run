@@ -18,7 +18,11 @@ async function run(): Promise<void> {
     const region: string = core.getInput('region')
     const runScript: string = core.getInput('run')
     const vpcId: string = core.getInput('vpc_id')
-    const subnetId: string = core.getInput('subnet_id')
+    const subnetIds: string[] = core
+      .getInput('subnet_ids')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(x => x !== '')
     const shell: string = core.getInput('shell')
     const securityGroupId: string = core.getInput('security_group_id')
     const memory: string = core.getInput(`memory`)
@@ -51,7 +55,7 @@ async function run(): Promise<void> {
         image,
         run: runScript,
         vpcId,
-        subnetId,
+        subnetIds,
         uniqueExecutionId,
         executionRoleArn: executionRoleArn !== '' ? executionRoleArn : roleArn,
         taskRoleArn: taskRoleArn !== '' ? taskRoleArn : roleArn,

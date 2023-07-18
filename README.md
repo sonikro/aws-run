@@ -127,7 +127,8 @@ jobs:
           image: hashicorp/terraform:latest
           region: us-east-1
           vpc_id: "${{secrets.VPC_ID}}"
-          subnet_id: "${{secrets.SUBNBET_ID}}"
+          subnet_ids: |
+            ${{secrets.SUBNBET_ID}}
           security_group_id: "<SECURITY_GROUP_ID>"
           shell: sh
           run: |
@@ -174,10 +175,10 @@ In the execution phase, the action will:
 - [ ] Come up with a more restrictive IAM Policy Example
 - [X] Add more parameters to allow customizing the CPU and Memory of the container 
 - [X] Delete the Cloudwatch Logstream on Teardown
-- [ ] Allow multiple Subnet IDs
+- [X] Allow multiple Subnet IDs
 - [X] Stream the Cloudwatch logs as they happen, and not just at the end of the execution
 - [ ] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
-
+- [ ] Automatically create temporary security group if one is not provided
 ## Developing the action locally
 
 

@@ -29,12 +29,11 @@ jobs:
           image: hashicorp/terraform:latest
           region: us-east-1
           vpc_id: "${{secrets.TEST_VPC_ID}}"
-          subnet_id: "${{secrets.TEST_SUBNET_ID}}"
+          subnet_ids: |
+            ${{secrets.TEST_SUBNET_ID}}
           security_group_id: sg-04d5dfcb3fcd1285b
           shell: sh
           run: |
             ls -la
-            sleep 5
             terraform -v
-            sleep 5
             echo "Hello World. I am ${{github.repository}}"
