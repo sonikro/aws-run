@@ -177,8 +177,13 @@ In the execution phase, the action will:
 - [X] Delete the Cloudwatch Logstream on Teardown
 - [X] Allow multiple Subnet IDs
 - [X] Stream the Cloudwatch logs as they happen, and not just at the end of the execution
-- [ ] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
 - [ ] Automatically create temporary security group if one is not provided
+- [ ] Automatically grab list of Subnets for VPC_ID, if Subnet_IDS are not provided
+- [ ] Mask secrets inside the Cloudwatch Logs
+- [ ] Map all GitHub Contexts/ENVS into the ECS Container
+- [ ] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
+- [ ] Find a way to map environment variables from the remote shell, back to the runner (after execution)
+
 ## Developing the action locally
 
 
