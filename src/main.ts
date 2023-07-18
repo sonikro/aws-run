@@ -23,6 +23,7 @@ async function run(): Promise<void> {
     const securityGroupId: string = core.getInput('security_group_id')
     const memory: string = core.getInput(`memory`)
     const cpu: string = core.getInput(`cpu`)
+    const ecsClusterName: string = core.getInput(`ecs_cluster_name`)
 
     core.debug(`Using ${roleArn} to authenticate to AWS`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
     core.debug(`Using ${image} as the container image for running the task`)
@@ -57,7 +58,8 @@ async function run(): Promise<void> {
         shell,
         securityGroupId,
         memory,
-        cpu
+        cpu,
+        ecsClusterName
       })
 
     if (executionResult.exitCode !== 0) {

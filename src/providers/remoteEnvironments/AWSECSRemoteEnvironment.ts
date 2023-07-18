@@ -31,6 +31,7 @@ export interface ECSExecutionSettings extends ExecutionSettings {
   securityGroupId: string
   memory: string
   cpu: string
+  ecsClusterName: string
 }
 
 export interface ECSTaskExecutionResult extends ExecutionResult {
@@ -44,8 +45,6 @@ export type TeardownFunction = () => Promise<any>
 export class AWSECSRemoteEnvironment
   implements RemoteEnvironment<ECSExecutionSettings>
 {
-  static readonly CLUSTER_NAME = 'github-actions-aws-run'
-
   private readonly tearDownQueue: TeardownFunction[] = []
 
   static async fromGithubOidc({
@@ -108,7 +107,7 @@ export class AWSECSRemoteEnvironment
 
     // Setup Environment
     console.log('Setting up required infrastructure')
-    const ecsCluster = await this.setupECSCluster()
+    const ecsCluster = await this.setupECSCluster({settings})
     console.log(`Using ECS Cluster ${ecsCluster.clusterName}`)
     core.debug(
       `Uploading runner workspace to S3 so it can be shared with the remote execution ECS Task`
@@ -161,8 +160,12 @@ export class AWSECSRemoteEnvironment
     }
   }
 
-  protected async setupECSCluster(): Promise<ECS.Cluster> {
-    const ecsCluster = await this.getOrCreateCluster()
+  protected async setupECSCluster({
+    settings
+  }: {
+    settings: ECSExecutionSettings
+  }): Promise<ECS.Cluster> {
+    const ecsCluster = await this.getOrCreateCluster({settings})
     return ecsCluster
   }
 
@@ -190,7 +193,7 @@ export class AWSECSRemoteEnvironment
 
     const awsLogsParameters = {
       'awslogs-create-group': 'true',
-      'awslogs-group': AWSECSRemoteEnvironment.CLUSTER_NAME,
+      'awslogs-group': settings.ecsClusterName,
       'awslogs-region': ecs.config.region!,
       'awslogs-stream-prefix': 'aws-run-logs'
     }
@@ -321,9 +324,7 @@ export class AWSECSRemoteEnvironment
   }): Promise<ECS.Task> {
     const {cloudwatchLogs, ecs} = this.dependencies
 
-    const taskId = taskArn.split(
-      `:task/${AWSECSRemoteEnvironment.CLUSTER_NAME}/`
-    )[1]
+    const taskId = taskArn.split(`:task/${settings.ecsClusterName}/`)[1]
 
     const POLLING_INTERVAL = 2000
 
@@ -476,12 +477,16 @@ export class AWSECSRemoteEnvironment
     await s3.deleteBucket({Bucket: bucketName}).promise()
   }
 
-  protected async getOrCreateCluster(): Promise<ECS.Cluster> {
+  protected async getOrCreateCluster({
+    settings
+  }: {
+    settings: ECSExecutionSettings
+  }): Promise<ECS.Cluster> {
     const {ecs} = this.dependencies
 
     const existingClusterResponse = await ecs
       .describeClusters({
-        clusters: [AWSECSRemoteEnvironment.CLUSTER_NAME]
+        clusters: [settings.ecsClusterName]
       })
       .promise()
 
@@ -492,7 +497,7 @@ export class AWSECSRemoteEnvironment
     const newClusterResponse = await ecs
       .createCluster({
         capacityProviders: ['FARGATE'],
-        clusterName: AWSECSRemoteEnvironment.CLUSTER_NAME,
+        clusterName: settings.ecsClusterName,
         tags: [{key: 'managedBy', value: 'aws-run'}]
       })
       .promise()
