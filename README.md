@@ -165,6 +165,7 @@ In the execution phase, the action will:
 
 - The Task Definition is deleted
 - The S3 Bucket that stored the runner workspace data is deleted
+- Cloudwatch Logstreams are deleted
 
 > Currently the ECS Cluster is not deleted, as it can be reused with no additional cost.
 
