@@ -21,6 +21,8 @@ async function run(): Promise<void> {
     const subnetId: string = core.getInput('subnet_id')
     const shell: string = core.getInput('shell')
     const securityGroupId: string = core.getInput('security_group_id')
+    const memory: string = core.getInput(`memory`)
+    const cpu: string = core.getInput(`cpu`)
 
     core.debug(`Using ${roleArn} to authenticate to AWS`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
     core.debug(`Using ${image} as the container image for running the task`)
@@ -53,7 +55,9 @@ async function run(): Promise<void> {
         executionRoleArn: executionRoleArn !== '' ? executionRoleArn : roleArn,
         taskRoleArn: taskRoleArn !== '' ? taskRoleArn : roleArn,
         shell,
-        securityGroupId
+        securityGroupId,
+        memory,
+        cpu
       })
 
     if (executionResult.exitCode !== 0) {

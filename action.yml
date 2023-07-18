@@ -11,6 +11,14 @@ inputs:
   task_role_arn:
     required: false
     description: Role ARN to be used as Task Role arn for the ECS Task that will run the script. Defaults to ROLE_ARN
+  memory:
+    required: false
+    default: "512"
+    description: Amount of memory to be used by the remote ECS Task (Must be a FARGATE Compatible combination. See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html)
+  cpu:
+    required: false
+    default: "256"
+    description: Amount of vCPU to be used by the remote ECS Task (Must be a FARGATE Compatible combination. See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html)
   image:
     required: true
     description: Name of the docker container to be used for the step execution
