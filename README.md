@@ -124,7 +124,6 @@ jobs:
       - uses: sonikro/aws-run@v1
         with:
           role_arn: "${{secrets.ROLE_ARN}}"
-          execution_role_arn: "${{secrets.ROLE_ARN}}"
           image: hashicorp/terraform:latest
           region: us-east-1
           vpc_id: "${{secrets.VPC_ID}}"

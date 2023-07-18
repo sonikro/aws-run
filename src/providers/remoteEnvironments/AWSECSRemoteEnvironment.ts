@@ -26,7 +26,6 @@ export interface ECSExecutionSettings extends ExecutionSettings {
   uniqueExecutionId: string
   executionRoleArn: string
   taskRoleArn: string
-  s3AccessRoelArn: string
   shell: string
   securityGroupId: string
 }
@@ -171,7 +170,7 @@ export class AWSECSRemoteEnvironment
   }): Promise<string> {
     const bucketWithWorkspace = await this.uploadWorkspaceToS3(
       `aws-run-${settings.uniqueExecutionId}-workspace`,
-      settings.s3AccessRoelArn
+      settings.taskRoleArn
     )
 
     return bucketWithWorkspace
