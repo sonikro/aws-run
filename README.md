@@ -184,6 +184,7 @@ In the execution phase, the action will:
 - [ ] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
 - [ ] Find a way to map environment variables from the remote shell, back to the runner (after execution)
 - [ ] Change the TearDown step to run as a **post** action on GHA, so take advantages of errors/cancellations
+- [ ] Make it compatible with [Windows Containers](https://aws.amazon.com/blogs/containers/running-windows-containers-with-amazon-ecs-on-aws-fargate/)
 ## Developing the action locally
 
 
