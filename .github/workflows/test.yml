@@ -15,8 +15,9 @@ jobs:
           npm install
       - run: |
           npm run all
-  test: # make sure the action works on a clean machine without building
+  test: 
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'sonikro'
     permissions:
       contents: read
       id-token: write
