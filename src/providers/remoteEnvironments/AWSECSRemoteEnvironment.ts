@@ -8,6 +8,7 @@ import {
   ExecutionSettings,
   RemoteEnvironment
 } from '../../core/provider/RemoteEnvironment'
+import * as core from '@actions/core'
 
 export interface AWSCredentials {
   roleArn: string
@@ -107,12 +108,12 @@ export class AWSECSRemoteEnvironment
     console.log('Setting up required infrastructure')
     const ecsCluster = await this.setupECSCluster()
     console.log(`Using ECS Cluster ${ecsCluster.clusterName}`)
-    console.log(
+    core.debug(
       `Uploading runner workspace to S3 so it can be shared with the remote execution ECS Task`
     )
     const s3Workspace = await this.setupS3Workspace({settings})
-    console.log(`Workspace uploaded successfully`)
-    console.log(`Creating task definition`)
+    core.debug(`Workspace uploaded successfully`)
+    core.debug(`Creating task definition`)
     const taskDefinition = await this.createTaskDefinition({
       settings,
       s3Workspace
@@ -132,7 +133,7 @@ export class AWSECSRemoteEnvironment
       })
       .promise()
 
-    console.log(`Streaming Cloudwatch Logs until task reaches STOPPED state`)
+    core.debug(`Streaming Cloudwatch Logs until task reaches STOPPED state`)
     // Listen for logs until task reaches stopped status
     const stoppedTask = await this.streamLogsUntilStopped({
       taskArn: executionTask.taskArn!,
@@ -331,7 +332,7 @@ export class AWSECSRemoteEnvironment
             it.logConfiguration!.options!['awslogs-stream-prefix']
           }/${it.name}/${taskId}`
           const logGroupName = it.logConfiguration!.options!['awslogs-group']
-          console.log(`Deleting Logstream ${logGroupName}/${logStreamName}`)
+          core.debug(`Deleting Logstream ${logGroupName}/${logStreamName}`)
           return await cloudwatchLogs
             .deleteLogStream({
               logGroupName,
@@ -461,7 +462,7 @@ export class AWSECSRemoteEnvironment
   protected async deleteBucket(bucketName: string): Promise<void> {
     const {s3} = this.dependencies
 
-    console.log(`Deleting Bucket ${bucketName}`)
+    core.debug(`Deleting Bucket ${bucketName}`)
     const allObjects = await s3.listObjectsV2({Bucket: bucketName}).promise()
 
     await Promise.all(
