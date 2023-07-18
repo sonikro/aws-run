@@ -19,6 +19,10 @@ inputs:
     required: false
     default: "256"
     description: Amount of vCPU to be used by the remote ECS Task (Must be a FARGATE Compatible combination. See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html)
+  ecs_cluster_name:
+    required: false
+    default: "github-actions-aws-run"
+    description: The name of the ECS Cluster where the Tasks will run. It will be automatically created if it doesn't exist
   image:
     required: true
     description: Name of the docker container to be used for the step execution
