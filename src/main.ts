@@ -63,7 +63,8 @@ async function run(): Promise<void> {
         securityGroupId,
         memory,
         cpu,
-        ecsClusterName
+        ecsClusterName,
+        runnerWorkspaceFolder: process.env.GITHUB_WORKSPACE as string
       })
 
     if (executionResult.exitCode !== 0) {

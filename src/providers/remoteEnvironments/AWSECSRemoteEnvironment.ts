@@ -32,6 +32,7 @@ export interface ECSExecutionSettings extends ExecutionSettings {
   memory: string
   cpu: string
   ecsClusterName: string
+  runnerWorkspaceFolder: string
 }
 
 export interface ECSTaskExecutionResult extends ExecutionResult {
@@ -176,7 +177,8 @@ export class AWSECSRemoteEnvironment
   }): Promise<string> {
     const bucketWithWorkspace = await this.uploadWorkspaceToS3(
       `aws-run-${settings.uniqueExecutionId}-workspace`,
-      settings.taskRoleArn
+      settings.taskRoleArn,
+      settings.runnerWorkspaceFolder
     )
 
     return bucketWithWorkspace
@@ -390,7 +392,8 @@ export class AWSECSRemoteEnvironment
 
   protected async uploadWorkspaceToS3(
     bucketName: string,
-    accessRoleArn: string
+    accessRoleArn: string,
+    runnerWorkspaceFolder: string
   ): Promise<string> {
     const {s3} = this.dependencies
 
@@ -419,8 +422,6 @@ export class AWSECSRemoteEnvironment
         })
       })
       .promise()
-
-    const runnerWorkspaceFolder = process.env.GITHUB_WORKSPACE as string
 
     await this.uploadDir(runnerWorkspaceFolder, bucketName)
 
@@ -469,8 +470,11 @@ export class AWSECSRemoteEnvironment
     const allObjects = await s3.listObjectsV2({Bucket: bucketName}).promise()
 
     await Promise.all(
-      allObjects.Contents!.map(async content =>
-        s3.deleteObject({Bucket: bucketName, Key: content.Key!}).promise()
+      allObjects.Contents!.map(
+        async content =>
+          await s3
+            .deleteObject({Bucket: bucketName, Key: content.Key!})
+            .promise()
       )
     )
 
