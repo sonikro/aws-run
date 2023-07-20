@@ -206,6 +206,11 @@ export class AWSECSRemoteEnvironment
     const workspaceContainerName = 'workspace'
     const workspaceContainerPath = '/workspace'
 
+    const environmentValues = Object.keys(process.env).map(key => ({
+      name: key,
+      value: process.env[key]
+    }))
+
     const mainContainerDefinition: ContainerDefinition = {
       image: settings.image,
       essential: true,
@@ -213,6 +218,7 @@ export class AWSECSRemoteEnvironment
       command: [unifiedCommand],
       workingDirectory: workspaceContainerPath,
       name: settings.uniqueExecutionId,
+      environment: environmentValues,
       logConfiguration: {
         logDriver: 'awslogs',
         options: awsLogsParameters

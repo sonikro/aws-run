@@ -38,3 +38,4 @@ jobs:
             ls -la
             terraform -v
             echo "Hello World. I am ${{github.repository}}"
+            echo "Testing $GITHUB_REPOSITORY variable"
