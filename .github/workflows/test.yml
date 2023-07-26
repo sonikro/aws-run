@@ -15,7 +15,7 @@ jobs:
           npm install
       - run: |
           npm run all
-  test: 
+  test-existing-sg: 
     runs-on: ubuntu-latest
     if: github.repository_owner == 'sonikro'
     permissions:
@@ -33,6 +33,29 @@ jobs:
           subnet_ids: |
             ${{secrets.TEST_SUBNET_ID}}
           security_group_id: sg-04d5dfcb3fcd1285b
+          shell: sh
+          run: |
+            ls -la
+            terraform -v
+            echo "Hello World. I am ${{github.repository}}"
+            echo "Testing $GITHUB_REPOSITORY variable"
+  test-new-sg: 
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'sonikro'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: ./
+        with:
+          role_arn: "${{secrets.TEST_ROLE_ARN}}"
+          image: hashicorp/terraform:latest
+          region: us-east-1
+          vpc_id: "${{secrets.TEST_VPC_ID}}"
+          subnet_ids: |
+            ${{secrets.TEST_SUBNET_ID}}
           shell: sh
           run: |
             ls -la
