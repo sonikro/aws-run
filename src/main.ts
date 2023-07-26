@@ -4,6 +4,7 @@ import {
   AWSECSRemoteEnvironment,
   ECSExecutionSettings
 } from './providers/remoteEnvironments/AWSECSRemoteEnvironment'
+import {v4 as uuidv4} from 'uuid'
 
 async function run(): Promise<void> {
   try {
@@ -49,7 +50,7 @@ async function run(): Promise<void> {
 
     const [owner, repository] = process.env.GITHUB_REPOSITORY!.split('/')
 
-    const uniqueExecutionId = `${owner}-${repository}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_NUMBER}-${process.env.GITHUB_RUN_ATTEMPT}`
+    const uniqueExecutionId = `aws-run-${owner}-${repository}-${uuidv4()}`
     core.debug(`Using ${uniqueExecutionId} as uniqueExecutionid`)
 
     const executionResult =
