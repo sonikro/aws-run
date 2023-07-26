@@ -213,7 +213,7 @@ In the execution phase, the action will:
 - [X] Delete the Cloudwatch Logstream on Teardown
 - [X] Allow multiple Subnet IDs
 - [X] Stream the Cloudwatch logs as they happen, and not just at the end of the execution
-- [ ] Automatically create temporary security group if one is not provided
+- [X] Automatically create temporary security group if one is not provided
 - [ ] Automatically grab list of Subnets for VPC_ID, if Subnet_IDS are not provided
 - [ ] Mask secrets inside the Cloudwatch Logs
 - [X] Map all GitHub Contexts/ENVS into the ECS Container
