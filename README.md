@@ -89,7 +89,13 @@ The policy attattched to this role must have at least these permissions:
                 "iam:PassRole",
                 "logs:CreateLogGroup",
                 "logs:GetLogEvents",
-                "s3:*"
+                "s3:*",
+                "ec2:DescribeSecurityGroups",
+				"ec2:DescribeSecurityGroupRules",
+				"ec2:AuthorizeSecurityGroupEgress",
+				"ec2:CreateSecurityGroup",
+				"ec2:AuthorizeSecurityGroupIngress",
+				"ec2:DeleteSecurityGroup"
             ],
             "Resource": "*"
         },
@@ -110,6 +116,36 @@ The policy attattched to this role must have at least these permissions:
 }
 ```
 ### Usage in your workflow
+
+#### Easiest way to get started
+
+
+```yaml
+jobs:
+  terraform: 
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write 
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: sonikro/aws-run@v1
+        with:
+          role_arn: "${{secrets.ROLE_ARN}}"
+          image: hashicorp/terraform:latest
+          region: us-east-1
+          vpc_id: "${{secrets.VPC_ID}}"
+          subnet_ids: |
+            ${{secrets.SUBNBET_ID}}
+          shell: sh
+          run: |
+            terraform apply
+```
+
+#### Specifying a custom security group id
+
+If you don't want the action to create a temporary security-group for the remote execution (the security group blocks all incoming traffic and allows all outgoing traffic), you must specify the **security_group_id** argument
 
 ```yaml
 jobs:

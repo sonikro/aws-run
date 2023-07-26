@@ -24,7 +24,9 @@ async function run(): Promise<void> {
       .map(s => s.trim())
       .filter(x => x !== '')
     const shell: string = core.getInput('shell')
-    const securityGroupId: string = core.getInput('security_group_id')
+    const securityGroupId: string = core.getInput('security_group_id', {
+      required: false
+    })
     const memory: string = core.getInput(`memory`)
     const cpu: string = core.getInput(`cpu`)
     const ecsClusterName: string = core.getInput(`ecs_cluster_name`)
