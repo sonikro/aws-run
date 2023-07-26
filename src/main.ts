@@ -20,7 +20,7 @@ async function run(): Promise<void> {
     const runScript: string = core.getInput('run')
     const vpcId: string = core.getInput('vpc_id')
     const subnetIds: string[] = core
-      .getInput('subnet_ids')
+      .getInput('subnet_ids', {required: false})
       .split('\n')
       .map(s => s.trim())
       .filter(x => x !== '')

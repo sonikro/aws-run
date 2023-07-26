@@ -130,11 +130,13 @@ export class AWSECSRemoteEnvironment
     })
     console.log(`Starting ECS Task`)
     // Start Remote Execution
+    const subnetIds = await this.findSubnetIds({settings})
+
     const executionTask = await this.startTask({
       ecsCluster,
-      settings,
       taskDefinition,
-      securityGroupId
+      securityGroupId,
+      subnetIds
     })
     console.log(`Waiting until ECS Task is running`)
     await ecs
@@ -169,6 +171,30 @@ export class AWSECSRemoteEnvironment
       s3WorkspaceBucket: s3Workspace
     }
   }
+  async findSubnetIds({
+    settings
+  }: {
+    settings: ECSExecutionSettings
+  }): Promise<string[]> {
+    const {ec2} = this.dependencies
+    if (settings.subnetIds.length > 0) {
+      return settings.subnetIds
+    }
+
+    const allSubnets = await ec2
+      .describeSubnets({
+        Filters: [
+          {
+            Name: 'vpc-id',
+            Values: [settings.vpcId]
+          }
+        ]
+      })
+      .promise()
+
+    return allSubnets.Subnets!.map(it => it.SubnetId!)
+  }
+
   async setupSecurityGroup({
     settings
   }: {
@@ -328,13 +354,13 @@ export class AWSECSRemoteEnvironment
   protected async startTask({
     taskDefinition,
     ecsCluster,
-    settings,
-    securityGroupId
+    securityGroupId,
+    subnetIds
   }: {
     taskDefinition: ECS.TaskDefinition
     ecsCluster: ECS.Cluster
-    settings: ECSExecutionSettings
     securityGroupId: string
+    subnetIds: string[]
   }): Promise<ECS.Task> {
     const {ecs} = this.dependencies
     const task = await ecs
@@ -345,7 +371,7 @@ export class AWSECSRemoteEnvironment
         networkConfiguration: {
           awsvpcConfiguration: {
             assignPublicIp: 'ENABLED',
-            subnets: settings.subnetIds,
+            subnets: subnetIds,
             securityGroups: [securityGroupId]
           }
         },
