@@ -1,4 +1,4 @@
-import AWS, {AWSError, CloudWatchLogs, Credentials, ECS, S3} from 'aws-sdk'
+import AWS, {AWSError, CloudWatchLogs, Credentials, EC2, ECS, S3} from 'aws-sdk'
 import AWSMock from 'aws-sdk-mock'
 import {PromiseResult} from 'aws-sdk/lib/request'
 import {mock} from 'jest-mock-extended'
@@ -12,7 +12,9 @@ describe('AWSECSRemoteEnvironment', () => {
     AWSMock.restore()
   })
 
-  const makeSut = () => {
+  const makeSut = (
+    executionSettingsOverride?: Partial<ECSExecutionSettings>
+  ) => {
     const region = 'us-east-1'
     const webIdentityToken = 'mockedWebIdentityToken'
     const roleArn = 'mockedRoleArn'
@@ -30,7 +32,8 @@ describe('AWSECSRemoteEnvironment', () => {
       taskRoleArn: 'taskRoleArn',
       uniqueExecutionId: 'uniqueExecutionId',
       vpcId: 'vpc-id',
-      runnerWorkspaceFolder: __dirname
+      runnerWorkspaceFolder: __dirname,
+      ...(executionSettingsOverride ? executionSettingsOverride : {})
     }
 
     AWSMock.setSDKInstance(AWS)
@@ -210,6 +213,26 @@ describe('AWSECSRemoteEnvironment', () => {
     })
     AWSMock.mock('S3', 'deleteObject', deleteObject)
     AWSMock.mock('S3', 'deleteBucket', deleteBucket)
+
+    const mockCreateSecurityGroupResponse = mock<
+      PromiseResult<EC2.CreateSecurityGroupResult, AWSError>
+    >({
+      GroupId: `mockedGroupId`
+    })
+    const createSecurityGroup = jest
+      .fn()
+      .mockImplementation((input, callback) => {
+        callback(null, mockCreateSecurityGroupResponse)
+      })
+
+    AWSMock.mock(`EC2`, `createSecurityGroup`, createSecurityGroup)
+
+    const deleteSecurityGroup = jest
+      .fn()
+      .mockImplementation((input, callback) => {
+        return callback(null, {})
+      })
+    AWSMock.mock(`EC2`, `deleteSecurityGroup`, deleteSecurityGroup)
     return {
       Sut: AWSECSRemoteEnvironment,
       region,
@@ -228,7 +251,8 @@ describe('AWSECSRemoteEnvironment', () => {
       deregisterTaskDefinition,
       deleteLogStream,
       deleteBucket,
-      deleteObject
+      deleteObject,
+      deleteSecurityGroup
     }
   }
 
@@ -275,6 +299,24 @@ describe('AWSECSRemoteEnvironment', () => {
       // Then
       expect(receivedResult.exitCode).toBe(0)
     }, 10000)
+
+    it('correctly creates the security group, if no securityGroupId is provided', async () => {
+      // Given
+      const {Sut, region, roleArn, webIdentityToken, ecsExecutionSettings} =
+        makeSut({securityGroupId: ''})
+      // When
+      const awsEcsRemoteEnvironment = await Sut.fromGithubOidc({
+        region,
+        roleArn,
+        webIdentityToken
+      })
+
+      const receivedResult = await awsEcsRemoteEnvironment.execute({
+        settings: ecsExecutionSettings
+      })
+      // Then
+      expect(receivedResult.exitCode).toBe(0)
+    }, 10000)
   })
 
   describe('tearDown', () => {
@@ -289,8 +331,9 @@ describe('AWSECSRemoteEnvironment', () => {
         deleteObject,
         deleteBucket,
         deleteLogStream,
-        deregisterTaskDefinition
-      } = makeSut()
+        deregisterTaskDefinition,
+        deleteSecurityGroup
+      } = makeSut({securityGroupId: ''})
       // When
       const awsEcsRemoteEnvironment = await Sut.fromGithubOidc({
         region,
@@ -309,6 +352,7 @@ describe('AWSECSRemoteEnvironment', () => {
       expect(deregisterTaskDefinition).toHaveBeenCalled()
       expect(deleteObject).toHaveBeenCalled()
       expect(deleteBucket).toHaveBeenCalled()
+      expect(deleteSecurityGroup).toHaveBeenCalled()
     }, 10000)
   })
 

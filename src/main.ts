@@ -4,6 +4,7 @@ import {
   AWSECSRemoteEnvironment,
   ECSExecutionSettings
 } from './providers/remoteEnvironments/AWSECSRemoteEnvironment'
+import {v4 as uuidv4} from 'uuid'
 
 async function run(): Promise<void> {
   try {
@@ -24,7 +25,9 @@ async function run(): Promise<void> {
       .map(s => s.trim())
       .filter(x => x !== '')
     const shell: string = core.getInput('shell')
-    const securityGroupId: string = core.getInput('security_group_id')
+    const securityGroupId: string = core.getInput('security_group_id', {
+      required: false
+    })
     const memory: string = core.getInput(`memory`)
     const cpu: string = core.getInput(`cpu`)
     const ecsClusterName: string = core.getInput(`ecs_cluster_name`)
@@ -45,9 +48,7 @@ async function run(): Promise<void> {
       remoteEnvironment: awsRemoteEnvironment
     })
 
-    const [owner, repository] = process.env.GITHUB_REPOSITORY!.split('/')
-
-    const uniqueExecutionId = `${owner}-${repository}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_NUMBER}-${process.env.GITHUB_RUN_ATTEMPT}`
+    const uniqueExecutionId = `aws-run-${uuidv4()}`
     core.debug(`Using ${uniqueExecutionId} as uniqueExecutionid`)
 
     const executionResult =

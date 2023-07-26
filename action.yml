@@ -31,8 +31,8 @@ inputs:
     description: AWS Region to execute the operations
     default: us-east-1
   security_group_id:
-    required: true
-    description: Security Group to be used by the ECS Task
+    required: false
+    description: Security Group to be used by the ECS Task. If not informed, a temporary security group will be created with access to the internet
   run:
     required: true
     description: Script that will be executed in the remote environment

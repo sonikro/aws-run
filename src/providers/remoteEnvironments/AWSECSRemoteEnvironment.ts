@@ -1,4 +1,4 @@
-import {CloudWatchLogs, ECS, S3, STS} from 'aws-sdk'
+import {CloudWatchLogs, EC2, ECS, S3, STS} from 'aws-sdk'
 import {ContainerDefinition} from 'aws-sdk/clients/ecs'
 import {createReadStream} from 'fs'
 import {readdir} from 'fs/promises'
@@ -19,6 +19,7 @@ export interface AWSECSRemoteEnvironmentDependencies {
   ecs: ECS
   cloudwatchLogs: CloudWatchLogs
   s3: S3
+  ec2: EC2
 }
 
 export interface ECSExecutionSettings extends ExecutionSettings {
@@ -89,7 +90,11 @@ export class AWSECSRemoteEnvironment
       credentials
     })
 
-    return new AWSECSRemoteEnvironment({ecs, cloudwatchLogs, s3})
+    const ec2 = new EC2({
+      region,
+      credentials
+    })
+    return new AWSECSRemoteEnvironment({ecs, cloudwatchLogs, s3, ec2})
   }
 
   private constructor(
@@ -109,10 +114,13 @@ export class AWSECSRemoteEnvironment
     // Setup Environment
     console.log('Setting up required infrastructure')
     const ecsCluster = await this.setupECSCluster({settings})
+
     console.log(`Using ECS Cluster ${ecsCluster.clusterName}`)
     core.debug(
       `Uploading runner workspace to S3 so it can be shared with the remote execution ECS Task`
     )
+    const securityGroupId = await this.setupSecurityGroup({settings})
+
     const s3Workspace = await this.setupS3Workspace({settings})
     core.debug(`Workspace uploaded successfully`)
     core.debug(`Creating task definition`)
@@ -125,7 +133,8 @@ export class AWSECSRemoteEnvironment
     const executionTask = await this.startTask({
       ecsCluster,
       settings,
-      taskDefinition
+      taskDefinition,
+      securityGroupId
     })
     console.log(`Waiting until ECS Task is running`)
     await ecs
@@ -159,6 +168,32 @@ export class AWSECSRemoteEnvironment
       ecsTaskDefinition: taskDefinition,
       s3WorkspaceBucket: s3Workspace
     }
+  }
+  async setupSecurityGroup({
+    settings
+  }: {
+    settings: ECSExecutionSettings
+  }): Promise<string> {
+    const {ec2} = this.dependencies
+    if (settings.securityGroupId === '') {
+      const newSecurityGroup = await ec2
+        .createSecurityGroup({
+          GroupName: `${settings.uniqueExecutionId}-aws-run-sg`,
+          Description: `Temporary security group for aws-run container`,
+          VpcId: settings.vpcId
+        })
+        .promise()
+
+      this.tearDownQueue.push(
+        async () =>
+          await ec2
+            .deleteSecurityGroup({GroupId: newSecurityGroup.GroupId!})
+            .promise()
+      )
+
+      return newSecurityGroup.GroupId!
+    }
+    return settings.securityGroupId
   }
 
   protected async setupECSCluster({
@@ -293,11 +328,13 @@ export class AWSECSRemoteEnvironment
   protected async startTask({
     taskDefinition,
     ecsCluster,
-    settings
+    settings,
+    securityGroupId
   }: {
     taskDefinition: ECS.TaskDefinition
     ecsCluster: ECS.Cluster
     settings: ECSExecutionSettings
+    securityGroupId: string
   }): Promise<ECS.Task> {
     const {ecs} = this.dependencies
     const task = await ecs
@@ -309,7 +346,7 @@ export class AWSECSRemoteEnvironment
           awsvpcConfiguration: {
             assignPublicIp: 'ENABLED',
             subnets: settings.subnetIds,
-            securityGroups: [settings.securityGroupId]
+            securityGroups: [securityGroupId]
           }
         },
         taskDefinition: taskDefinition.family!
