@@ -184,18 +184,6 @@ export class AWSECSRemoteEnvironment
         })
         .promise()
 
-      await ec2
-        .authorizeSecurityGroupEgress({
-          GroupId: newSecurityGroup.GroupId!,
-          IpPermissions: [
-            {
-              IpProtocol: '-1',
-              IpRanges: [{CidrIp: '0.0.0.0/0'}]
-            }
-          ]
-        })
-        .promise()
-
       this.tearDownQueue.push(
         async () =>
           await ec2

@@ -225,16 +225,6 @@ describe('AWSECSRemoteEnvironment', () => {
         callback(null, mockCreateSecurityGroupResponse)
       })
 
-    const authorizeSecurityGroupEgress = jest
-      .fn()
-      .mockImplementation((input, callback) => {
-        return callback(null, {})
-      })
-    AWSMock.mock(
-      `EC2`,
-      `authorizeSecurityGroupEgress`,
-      authorizeSecurityGroupEgress
-    )
     AWSMock.mock(`EC2`, `createSecurityGroup`, createSecurityGroup)
 
     const deleteSecurityGroup = jest
