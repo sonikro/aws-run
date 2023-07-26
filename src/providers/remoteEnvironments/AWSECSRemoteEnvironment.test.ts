@@ -233,6 +233,16 @@ describe('AWSECSRemoteEnvironment', () => {
         return callback(null, {})
       })
     AWSMock.mock(`EC2`, `deleteSecurityGroup`, deleteSecurityGroup)
+
+    const mockedDescribeSubnetResult = mock<
+      PromiseResult<EC2.DescribeSubnetsResult, AWSError>
+    >({
+      Subnets: [{SubnetId: 'subnet1'}, {SubnetId: 'subnet2'}]
+    })
+    const describeSubnets = jest.fn().mockImplementation((input, callback) => {
+      callback(null, mockedDescribeSubnetResult)
+    })
+    AWSMock.mock('EC2', 'describeSubnets', describeSubnets)
     return {
       Sut: AWSECSRemoteEnvironment,
       region,
@@ -248,11 +258,13 @@ describe('AWSECSRemoteEnvironment', () => {
       mockedCreateClusterResult,
       mockedDescribeClusterResult,
       mockedEcsCluster,
+      mockedDescribeSubnetResult,
       deregisterTaskDefinition,
       deleteLogStream,
       deleteBucket,
       deleteObject,
-      deleteSecurityGroup
+      deleteSecurityGroup,
+      describeSubnets
     }
   }
 
@@ -304,6 +316,24 @@ describe('AWSECSRemoteEnvironment', () => {
       // Given
       const {Sut, region, roleArn, webIdentityToken, ecsExecutionSettings} =
         makeSut({securityGroupId: ''})
+      // When
+      const awsEcsRemoteEnvironment = await Sut.fromGithubOidc({
+        region,
+        roleArn,
+        webIdentityToken
+      })
+
+      const receivedResult = await awsEcsRemoteEnvironment.execute({
+        settings: ecsExecutionSettings
+      })
+      // Then
+      expect(receivedResult.exitCode).toBe(0)
+    }, 10000)
+
+    it('correctly finds all subnetIds, if no subnetId is provided', async () => {
+      // Given
+      const {Sut, region, roleArn, webIdentityToken, ecsExecutionSettings} =
+        makeSut({subnetIds: []})
       // When
       const awsEcsRemoteEnvironment = await Sut.fromGithubOidc({
         region,

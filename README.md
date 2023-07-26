@@ -91,11 +91,12 @@ The policy attattched to this role must have at least these permissions:
                 "logs:GetLogEvents",
                 "s3:*",
                 "ec2:DescribeSecurityGroups",
-				"ec2:DescribeSecurityGroupRules",
-				"ec2:AuthorizeSecurityGroupEgress",
-				"ec2:CreateSecurityGroup",
-				"ec2:AuthorizeSecurityGroupIngress",
-				"ec2:DeleteSecurityGroup"
+                "ec2:DescribeSecurityGroupRules",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:CreateSecurityGroup",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:DeleteSecurityGroup",
+          			"ec2:DescribeSubnets"
             ],
             "Resource": "*"
         },
@@ -119,7 +120,6 @@ The policy attattched to this role must have at least these permissions:
 
 #### Easiest way to get started
 
-
 ```yaml
 jobs:
   terraform: 
@@ -136,8 +136,6 @@ jobs:
           image: hashicorp/terraform:latest
           region: us-east-1
           vpc_id: "${{secrets.VPC_ID}}"
-          subnet_ids: |
-            ${{secrets.SUBNBET_ID}}
           shell: sh
           run: |
             terraform apply
@@ -166,6 +164,34 @@ jobs:
           subnet_ids: |
             ${{secrets.SUBNBET_ID}}
           security_group_id: "<SECURITY_GROUP_ID>"
+          shell: sh
+          run: |
+            terraform apply
+```
+
+#### Using specific subnet ids
+
+If you want your task to run on specific subnets, use the **subnet_ids** argument
+
+```yaml
+jobs:
+  terraform: 
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write 
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: sonikro/aws-run@v1
+        with:
+          role_arn: "${{secrets.ROLE_ARN}}"
+          image: hashicorp/terraform:latest
+          region: us-east-1
+          vpc_id: "${{secrets.VPC_ID}}"
+          security_group_id: "<SECURITY_GROUP_ID>"
+          subnet_ids: |
+            ${{secrets.SUBNBET_ID}}
           shell: sh
           run: |
             terraform apply
@@ -214,7 +240,7 @@ In the execution phase, the action will:
 - [X] Allow multiple Subnet IDs
 - [X] Stream the Cloudwatch logs as they happen, and not just at the end of the execution
 - [X] Automatically create temporary security group if one is not provided
-- [ ] Automatically grab list of Subnets for VPC_ID, if Subnet_IDS are not provided
+- [X] Automatically grab list of Subnets for VPC_ID, if Subnet_IDS are not provided
 - [ ] Mask secrets inside the Cloudwatch Logs
 - [X] Map all GitHub Contexts/ENVS into the ECS Container
 - [ ] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
