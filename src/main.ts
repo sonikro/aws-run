@@ -48,9 +48,7 @@ async function run(): Promise<void> {
       remoteEnvironment: awsRemoteEnvironment
     })
 
-    const [owner, repository] = process.env.GITHUB_REPOSITORY!.split('/')
-
-    const uniqueExecutionId = `aws-run-${owner}-${repository}-${uuidv4()}`
+    const uniqueExecutionId = `aws-run-${uuidv4()}`
     core.debug(`Using ${uniqueExecutionId} as uniqueExecutionid`)
 
     const executionResult =
