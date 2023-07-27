@@ -39,6 +39,7 @@ jobs:
             terraform -v
             echo "Hello World. I am ${{github.repository}}"
             echo "Testing $GITHUB_REPOSITORY variable"
+            sleep 15
   test-new-sg: 
     runs-on: ubuntu-latest
     if: github.repository_owner == 'sonikro'
@@ -62,6 +63,7 @@ jobs:
             terraform -v
             echo "Hello World. I am ${{github.repository}}"
             echo "Testing $GITHUB_REPOSITORY variable"
+            sleep 15
   test-auto-subnet-ids: 
     runs-on: ubuntu-latest
     if: github.repository_owner == 'sonikro'
