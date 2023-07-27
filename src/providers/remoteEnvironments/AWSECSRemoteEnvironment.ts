@@ -418,22 +418,24 @@ export class AWSECSRemoteEnvironment
     })
 
     return await new Promise<ECS.Task>(resolve => {
+      const mainContainerDefinition = taskDefinition.containerDefinitions?.find(
+        it => (it.name = settings.uniqueExecutionId)
+      )!
+
+      const logstreamName = `${
+        mainContainerDefinition.logConfiguration!.options![
+          'awslogs-stream-prefix'
+        ]
+      }/${settings.uniqueExecutionId}/${taskId}`
+      const logGroup =
+        mainContainerDefinition.logConfiguration!.options!['awslogs-group']
+
       let nextToken: string | undefined
 
       const timer = setInterval(async () => {
-        const mainContainerDefinition =
-          taskDefinition.containerDefinitions?.find(
-            it => (it.name = settings.uniqueExecutionId)
-          )!
-
-        const logstreamName = `${
-          mainContainerDefinition.logConfiguration!.options![
-            'awslogs-stream-prefix'
-          ]
-        }/${settings.uniqueExecutionId}/${taskId}`
-        const logGroup =
-          mainContainerDefinition.logConfiguration!.options!['awslogs-group']
-
+        console.log(
+          `[DEBUG] Calling cloudwatchLogs with nextToken = ${nextToken}`
+        )
         const logs = await cloudwatchLogs
           .getLogEvents({
             logStreamName: logstreamName,
@@ -442,6 +444,10 @@ export class AWSECSRemoteEnvironment
             nextToken
           })
           .promise()
+
+        console.log(
+          `[DEBUG] Received ${logs.events?.length} logs. nextToken = ${logs.nextForwardToken}`
+        )
 
         nextToken = logs.nextForwardToken
 
