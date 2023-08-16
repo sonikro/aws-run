@@ -6,6 +6,9 @@ import {
   AWSECSRemoteEnvironment,
   ECSExecutionSettings
 } from './AWSECSRemoteEnvironment'
+import S3SyncClient from 's3-sync-client'
+
+jest.mock('s3-sync-client')
 
 describe('AWSECSRemoteEnvironment', () => {
   afterEach(() => {
@@ -243,6 +246,14 @@ describe('AWSECSRemoteEnvironment', () => {
       callback(null, mockedDescribeSubnetResult)
     })
     AWSMock.mock('EC2', 'describeSubnets', describeSubnets)
+
+    const s3SyncFn = jest.fn()
+
+    ;(S3SyncClient as jest.Mock).mockImplementation(() => {
+      return {
+        sync: s3SyncFn
+      }
+    })
     return {
       Sut: AWSECSRemoteEnvironment,
       region,
@@ -259,6 +270,7 @@ describe('AWSECSRemoteEnvironment', () => {
       mockedDescribeClusterResult,
       mockedEcsCluster,
       mockedDescribeSubnetResult,
+      s3SyncFn,
       deregisterTaskDefinition,
       deleteLogStream,
       deleteBucket,
