@@ -1,14 +1,13 @@
+import * as core from '@actions/core'
+import {S3Client} from '@aws-sdk/client-s3'
 import {CloudWatchLogs, EC2, ECS, S3, STS} from 'aws-sdk'
 import {ContainerDefinition} from 'aws-sdk/clients/ecs'
-import {createReadStream} from 'fs'
-import {readdir} from 'fs/promises'
-import path from 'path'
+import S3SyncClient from 's3-sync-client'
 import {
   ExecutionResult,
   ExecutionSettings,
   RemoteEnvironment
 } from '../../core/provider/RemoteEnvironment'
-import * as core from '@actions/core'
 
 export interface AWSCredentials {
   roleArn: string
@@ -20,6 +19,7 @@ export interface AWSECSRemoteEnvironmentDependencies {
   cloudwatchLogs: CloudWatchLogs
   s3: S3
   ec2: EC2
+  s3SyncClient: S3SyncClient
 }
 
 export interface ECSExecutionSettings extends ExecutionSettings {
@@ -94,7 +94,18 @@ export class AWSECSRemoteEnvironment
       region,
       credentials
     })
-    return new AWSECSRemoteEnvironment({ecs, cloudwatchLogs, s3, ec2})
+
+    const s3Client = new S3Client({region, credentials})
+
+    const s3SyncClient = new S3SyncClient({client: s3Client})
+
+    return new AWSECSRemoteEnvironment({
+      ecs,
+      cloudwatchLogs,
+      s3,
+      ec2,
+      s3SyncClient
+    })
   }
 
   private constructor(
@@ -157,6 +168,11 @@ export class AWSECSRemoteEnvironment
     console.log(`ECS Task execution completed`)
     // Wait for task to stop
 
+    await this.resyncWorkspace({
+      bucketName: s3Workspace,
+      localWorkspace: settings.runnerWorkspaceFolder
+    })
+
     const mainContainer = stoppedTask.containers!.find(
       it => it.name === settings.uniqueExecutionId
     )!
@@ -171,6 +187,24 @@ export class AWSECSRemoteEnvironment
       s3WorkspaceBucket: s3Workspace
     }
   }
+
+  /**
+   * Downloads the workspace back from the S3 Bucket into the Runner Workspace
+   */
+  protected async resyncWorkspace({
+    bucketName,
+    localWorkspace
+  }: {
+    bucketName: string
+    localWorkspace: string
+  }): Promise<void> {
+    const {s3SyncClient} = this.dependencies
+
+    await s3SyncClient.sync(`s3://${bucketName}`, localWorkspace, {
+      filters: [{exclude: key => key.startsWith('.git/')}]
+    })
+  }
+
   async findSubnetIds({
     settings
   }: {
@@ -265,6 +299,7 @@ export class AWSECSRemoteEnvironment
 
     const workspaceVolumeName = 'runner-workspace'
     const workspaceContainerName = 'workspace'
+    const resyncWorkspaceContainerName = 'resync-workspace'
     const workspaceContainerPath = '/workspace'
 
     const environmentValues = Object.keys(process.env).map(key => ({
@@ -272,9 +307,12 @@ export class AWSECSRemoteEnvironment
       value: process.env[key]
     }))
 
+    /**
+     * The Main Container definition is the Task that will actually run the task
+     */
     const mainContainerDefinition: ContainerDefinition = {
       image: settings.image,
-      essential: true,
+      essential: false,
       entryPoint: [settings.shell, '-c'],
       command: [unifiedCommand],
       workingDirectory: workspaceContainerPath,
@@ -298,6 +336,9 @@ export class AWSECSRemoteEnvironment
       ]
     }
 
+    /**
+     * This sidecar container will load the Runner Workspace from the runner, into a shared volume
+     */
     const workspaceSidecarDefinition: ContainerDefinition = {
       name: workspaceContainerName,
       image: 'amazon/aws-cli:2.13.1',
@@ -317,6 +358,34 @@ export class AWSECSRemoteEnvironment
       }
     }
 
+    /**
+     * The resyncWorkspace runs after the mainContainer, and makes sure to upload any file changes back to the S3 Bucket
+     */
+    const resyncWorkspaceDefinition: ContainerDefinition = {
+      name: resyncWorkspaceContainerName,
+      image: 'amazon/aws-cli:2.13.1',
+      essential: true,
+      entryPoint: ['bash', '-c'],
+      command: [`aws s3 sync . s3://${s3Workspace}`],
+      workingDirectory: workspaceContainerPath,
+      mountPoints: [
+        {
+          containerPath: workspaceContainerPath,
+          sourceVolume: workspaceVolumeName
+        }
+      ],
+      logConfiguration: {
+        logDriver: 'awslogs',
+        options: awsLogsParameters
+      },
+      dependsOn: [
+        {
+          containerName: settings.uniqueExecutionId,
+          condition: 'COMPLETE'
+        }
+      ]
+    }
+
     const taskDefinition = await ecs
       .registerTaskDefinition({
         family: settings.uniqueExecutionId,
@@ -334,7 +403,8 @@ export class AWSECSRemoteEnvironment
         ],
         containerDefinitions: [
           mainContainerDefinition,
-          workspaceSidecarDefinition
+          workspaceSidecarDefinition,
+          resyncWorkspaceDefinition
         ]
       })
       .promise()
@@ -464,7 +534,7 @@ export class AWSECSRemoteEnvironment
     accessRoleArn: string,
     runnerWorkspaceFolder: string
   ): Promise<string> {
-    const {s3} = this.dependencies
+    const {s3, s3SyncClient} = this.dependencies
 
     await s3
       .createBucket({
@@ -492,38 +562,11 @@ export class AWSECSRemoteEnvironment
       })
       .promise()
 
-    await this.uploadDir(runnerWorkspaceFolder, bucketName)
+    await s3SyncClient.sync(runnerWorkspaceFolder, `s3://${bucketName}`)
 
     this.tearDownQueue.push(async () => await this.deleteBucket(bucketName))
 
     return bucketName
-  }
-
-  protected async uploadDir(s3Path: string, bucketName: string): Promise<void> {
-    const {s3} = this.dependencies
-
-    async function getFiles(dir: string): Promise<string | string[]> {
-      const dirents = await readdir(dir, {withFileTypes: true})
-      const files = await Promise.all(
-        dirents.map(async dirent => {
-          const res = path.resolve(dir, dirent.name)
-          return dirent.isDirectory() ? getFiles(res) : res
-        })
-      )
-      return Array.prototype.concat(...files)
-    }
-
-    const files = (await getFiles(s3Path)) as string[]
-    const uploads = files.map(async filePath =>
-      s3
-        .putObject({
-          Key: path.relative(s3Path, filePath),
-          Bucket: bucketName,
-          Body: createReadStream(filePath)
-        })
-        .promise()
-    )
-    await Promise.all(uploads)
   }
 
   async tearDown(): Promise<void> {

@@ -14,6 +14,7 @@ This action allows you to run a script inside of your AWS Account, without havin
 - Pick whic VPC/Subnet you want your Task to run
 - Tasks are ephemeral and all resources created to run the task are teared down by the end, making it the ultimate ephemeral task
 - Don't worry about setting up your own runners inside your VPC anymore, as you can use any runner with access to the internet to remotely execute code within your AWS Environment
+- Seamlessly share files back and forth between your GH Runner and your ECS Task
 
 ## Getting Started
 
@@ -222,7 +223,7 @@ In the execution phase, the action will:
 - It waits for the ECS Task to complete.
 - It fetches the exitCode of the ECS Task, and use it to determine if the Action should Fail or Succeed
 - All logs are streamed to a Cloudwatch Logstream. These logs are then fetched and displayed on GHA (so you don't have to go to AWS Console to see the execution logs)
-
+- Any file changes made in the ECS Task will be synced back to the GitHub Runner
 
 ### Teardown
 
@@ -243,7 +244,7 @@ In the execution phase, the action will:
 - [X] Automatically grab list of Subnets for VPC_ID, if Subnet_IDS are not provided
 - [ ] Mask secrets inside the Cloudwatch Logs
 - [X] Map all GitHub Contexts/ENVS into the ECS Container
-- [ ] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
+- [X] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
 - [ ] Find a way to map environment variables from the remote shell, back to the runner (after execution)
 - [ ] Change the TearDown step to run as a **post** action on GHA, so take advantages of errors/cancellations
 - [ ] Make it compatible with [Windows Containers](https://aws.amazon.com/blogs/containers/running-windows-containers-with-amazon-ecs-on-aws-fargate/)
