@@ -6,6 +6,33 @@
 
 This action allows you to run a script inside of your AWS Account, without having to spin up your own runner. By leveraging the power of ECS Tasks, you can use any docker image, and run any script inside of your Job, as if that script was being executed inside of the runner, however, the script is remotely executed inside of your AWS VPC, which grants your step special access to private resources, such as RDS Databases, Internal Loadbalancers, and much more.
 
+<!-- start inputs -->
+
+| **Input**                      | **Description**                                                                                                                                                                                                        | **Default**              | **Required** |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | ------------ |
+| **`role_arn`**                 | Role ARN to be used to create/execute the required infrastructure on AWS                                                                                                                                               |                          | **true**     |
+| **`execution_role_arn`**       | Role ARN to be used to as execution role for the ECS Task that will run the script. Defaults to ROLE_ARN                                                                                                               |                          | **false**    |
+| **`task_role_arn`**            | Role ARN to be used as Task Role arn for the ECS Task that will run the script. Defaults to ROLE_ARN                                                                                                                   |                          | **false**    |
+| **`memory`**                   | Amount of memory to be used by the remote ECS Task (Must be a FARGATE Compatible combination. See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html)                              | `512`                    | **false**    |
+| **`cpu`**                      | Amount of vCPU to be used by the remote ECS Task (Must be a FARGATE Compatible combination. See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html)                                | `256`                    | **false**    |
+| **`ecs_cluster_name`**         | The name of the ECS Cluster where the Tasks will run. It will be automatically created if it doesn't exist                                                                                                             | `github-actions-aws-run` | **false**    |
+| **`image`**                    | Name of the docker container to be used for the step execution                                                                                                                                                         |                          | **true**     |
+| **`region`**                   | AWS Region to execute the operations                                                                                                                                                                                   | `us-east-1`              | **true**     |
+| **`security_group_id`**        | Security Group to be used by the ECS Task. If not informed, a temporary security group will be created with access to the internet                                                                                     |                          | **false**    |
+| **`run`**                      | Script that will be executed in the remote environment                                                                                                                                                                 |                          | **true**     |
+| **`shell`**                    | Name of the shell to be used in the container to execute the run script                                                                                                                                                |                          | **true**     |
+| **`subnet_ids`**               | Subnet ID of where the Task will be executed. If no subnet_ids is specified, the task will find one automatically within the VPC                                                                                       |                          | **false**    |
+| **`vpc_id`**                   | VPC ID of where the Task will be executed                                                                                                                                                                              |                          | **true**     |
+| **`tags`**                     | The list of custom tags to be added to all resources created on AWS with.                                                                                                                                              |                          | **false**    |
+| **`polling_interval`**         | The amount of time (in seconds) between polling cloudwatch logs.                                                                                                                                                       | `2`                      | **false**    |
+| **`post_complete_log_cycles`** | Number of polling cycles to try getting logs after the ecs task completes.                                                                                                                                             | `4`                      | **false**    |
+| **`upload_includes`**          | Array of string paths to include while uploading the runner workspace to the ECS Task. Excludes apply before includes. See https://docs.aws.amazon.com/cli/latest/reference/s3/#use-of-exclude-and-include-filters     |                          | **false**    |
+| **`upload_excludes`**          | Array of string paths to exclude while uploading the runner workspace to the ECS Task. Excludes apply before includes. See https://docs.aws.amazon.com/cli/latest/reference/s3/#use-of-exclude-and-include-filters     |                          | **false**    |
+| **`download_includes`**        | Array of string paths to include while downloading the runner workspace from the ECS Task. Excludes apply before includes. See https://docs.aws.amazon.com/cli/latest/reference/s3/#use-of-exclude-and-include-filters |                          | **false**    |
+| **`download_excludes`**        | Array of string paths to exclude while downloading the runner workspace from the ECS Task. Excludes apply before includes. See https://docs.aws.amazon.com/cli/latest/reference/s3/#use-of-exclude-and-include-filters |                          | **false**    |
+
+<!-- end inputs -->
+
 ## Benefits
 
 - Use IaC (such as Terraform) to manipulate resources that are in Private VPCs (such as RDS, Opensearch, etc)
@@ -246,8 +273,9 @@ In the execution phase, the action will:
 - [X] Map all GitHub Contexts/ENVS into the ECS Container
 - [X] Ability to upload artifacts back to GitHub (if your remote execution generates artifacts)
 - [ ] Find a way to map environment variables from the remote shell, back to the runner (after execution)
-- [ ] Change the TearDown step to run as a **post** action on GHA, so take advantages of errors/cancellations
+- [X] Change the TearDown step to run as a **post** action on GHA, so take advantages of errors/cancellations
 - [ ] Make it compatible with [Windows Containers](https://aws.amazon.com/blogs/containers/running-windows-containers-with-amazon-ecs-on-aws-fargate/)
+
 ## Developing the action locally
 
 

@@ -44,7 +44,10 @@ describe('RunCodeInRemoteEnvironment', () => {
     } = makeSut()
     // When
     const runCodeInRemote = new Sut(dependencies)
-    const receivedResult = await runCodeInRemote.run(executionSettings)
+    const receivedResult = await runCodeInRemote.run({
+      settings: executionSettings,
+      tearDown: true
+    })
     // Then
     expect(receivedResult).toEqual(expectedExecutionResult)
   })
@@ -58,7 +61,8 @@ describe('RunCodeInRemoteEnvironment', () => {
       .mockRejectedValue(expectedError)
     // When
     const runCodeInRemote = new Sut(dependencies)
-    const act = () => runCodeInRemote.run(executionSettings)
+    const act = () =>
+      runCodeInRemote.run({settings: executionSettings, tearDown: true})
 
     // Then
     await expect(act()).rejects.toThrowError(expectedError)
@@ -74,7 +78,10 @@ describe('RunCodeInRemoteEnvironment', () => {
     } = makeSut()
     // When
     const runCodeInRemote = new Sut(dependencies)
-    const receivedResult = await runCodeInRemote.run(executionSettings)
+    const receivedResult = await runCodeInRemote.run({
+      settings: executionSettings,
+      tearDown: true
+    })
     // Then
     expect(receivedResult).toEqual(expectedExecutionResult)
     expect(dependencies.remoteEnvironment.tearDown).toHaveBeenCalled()
@@ -89,10 +96,28 @@ describe('RunCodeInRemoteEnvironment', () => {
       .mockRejectedValue(expectedError)
     // When
     const runCodeInRemote = new Sut(dependencies)
-    const act = () => runCodeInRemote.run(executionSettings)
+    const act = () =>
+      runCodeInRemote.run({settings: executionSettings, tearDown: true})
 
     // Then
     await expect(act()).rejects.toThrowError(expectedError)
     expect(dependencies.remoteEnvironment.tearDown).toHaveBeenCalled()
+  })
+
+  it('ignores tearDown if tearDown is set to false', async () => {
+    // Given
+    const {Sut, dependencies, executionSettings} = makeSut()
+    const expectedError = new Error('Error during remote execution')
+    dependencies.remoteEnvironment.execute = jest
+      .fn()
+      .mockRejectedValue(expectedError)
+    // When
+    const runCodeInRemote = new Sut(dependencies)
+    const act = () =>
+      runCodeInRemote.run({settings: executionSettings, tearDown: false})
+
+    // Then
+    await expect(act()).rejects.toThrowError(expectedError)
+    expect(dependencies.remoteEnvironment.tearDown).not.toHaveBeenCalled()
   })
 })

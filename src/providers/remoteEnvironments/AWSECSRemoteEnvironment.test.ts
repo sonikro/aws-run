@@ -1,43 +1,35 @@
-import AWS, {AWSError, CloudWatchLogs, Credentials, EC2, ECS, S3} from 'aws-sdk'
-import AWSMock from 'aws-sdk-mock'
-import {PromiseResult} from 'aws-sdk/lib/request'
+import AWS, {Credentials, ECS} from 'aws-sdk'
 import {mock} from 'jest-mock-extended'
+import {BucketResource, BucketService} from '../awsServices/BucketService'
 import {
-  AWSECSRemoteEnvironment,
-  ECSExecutionSettings
-} from './AWSECSRemoteEnvironment'
-import S3SyncClient from 's3-sync-client'
+  ContainerService,
+  TaskDefinitionResource
+} from '../awsServices/ContainerService'
+import {
+  FinishedTaskResource,
+  LogStreamingService
+} from '../awsServices/LogStreamingService'
+import {
+  NetworkService,
+  SecurityGroupResource
+} from '../awsServices/NetworkService'
+import {AWSECSRemoteEnvironment} from './AWSECSRemoteEnvironment'
+import {ECSExecutionSettings} from './ECSExecutionSettings'
+import AWSMock from 'aws-sdk-mock'
 
-jest.mock('s3-sync-client')
+jest.mock('../awsServices/BucketService')
+jest.mock('../awsServices/ContainerService')
+jest.mock('../awsServices/LogStreamingService')
+jest.mock('../awsServices/NetworkService')
 
 describe('AWSECSRemoteEnvironment', () => {
-  afterEach(() => {
-    AWSMock.restore()
-  })
-
   const makeSut = (
-    executionSettingsOverride?: Partial<ECSExecutionSettings>
+    executionSettingsOverride?: Partial<ECSExecutionSettings>,
+    containerExitCode: number = 0
   ) => {
     const region = 'us-east-1'
     const webIdentityToken = 'mockedWebIdentityToken'
     const roleArn = 'mockedRoleArn'
-
-    const ecsExecutionSettings: ECSExecutionSettings = {
-      cpu: '256',
-      memory: '512',
-      ecsClusterName: 'clustername',
-      executionRoleArn: 'executionRoleArn',
-      image: 'terraform',
-      run: 'echo hello-world',
-      securityGroupId: 'sg-id',
-      shell: 'bash',
-      subnetIds: ['subnet-id1', 'subnet-id2'],
-      taskRoleArn: 'taskRoleArn',
-      uniqueExecutionId: 'uniqueExecutionId',
-      vpcId: 'vpc-id',
-      runnerWorkspaceFolder: __dirname,
-      ...(executionSettingsOverride ? executionSettingsOverride : {})
-    }
 
     AWSMock.setSDKInstance(AWS)
 
@@ -55,52 +47,41 @@ describe('AWSECSRemoteEnvironment', () => {
 
     AWSMock.mock('STS', 'assumeRoleWithWebIdentity', assumeRoleWithWebIdentity)
 
-    const mockedDescribeClusterResult = mock<
-      PromiseResult<ECS.DescribeClustersResponse, AWSError>
-    >({
-      clusters: []
-    })
-    const describeClusters = jest.fn().mockImplementation((input, callback) => {
-      callback(null, mockedDescribeClusterResult)
-    })
-    AWSMock.mock('ECS', 'describeClusters', describeClusters)
+    const ecsExecutionSettings: ECSExecutionSettings = {
+      cpu: '256',
+      memory: '512',
+      ecsClusterName: 'clustername',
+      executionRoleArn: 'executionRoleArn',
+      image: 'terraform',
+      run: 'echo hello-world',
+      securityGroupId: 'sg-id',
+      shell: 'bash',
+      subnetIds: ['subnet-id1', 'subnet-id2'],
+      taskRoleArn: 'taskRoleArn',
+      uniqueExecutionId: 'uniqueExecutionId',
+      vpcId: 'vpc-id',
+      tags: {custom: `tag`},
+      runnerWorkspaceFolder: __dirname,
+      pollingInterval: 1,
+      postCompleteLogCycles: 1,
+      uploadIncludes: [],
+      uploadExcludes: [],
+      downloadIncludes: [],
+      downloadExcludes: [],
+      ...(executionSettingsOverride ? executionSettingsOverride : {})
+    }
 
     const mockedEcsCluster = mock<ECS.Cluster>({
       clusterArn: 'clusterArn',
       clusterName: ecsExecutionSettings.ecsClusterName
     })
-    const mockedCreateClusterResult = mock<
-      PromiseResult<ECS.CreateClusterResponse, AWSError>
-    >({
-      cluster: mockedEcsCluster
-    })
-    const createCluster = jest.fn().mockImplementation((input, callback) => {
-      callback(null, mockedCreateClusterResult)
-    })
-    AWSMock.mock('ECS', 'createCluster', createCluster)
 
-    const mockCreateBucketResult =
-      mock<PromiseResult<S3.CreateBucketOutput, AWSError>>()
-    const createBucket = jest.fn().mockImplementation((input, callback) => {
-      callback(null, mockCreateBucketResult)
-    })
-    AWSMock.mock('S3', 'createBucket', createBucket)
+    const getOrCreateCluster = jest.fn().mockResolvedValue(mockedEcsCluster)
 
-    const putBucketPolicy = jest.fn().mockImplementation((input, callback) => {
-      callback(null, {})
-    })
-
-    AWSMock.mock('S3', 'putBucketPolicy', putBucketPolicy)
-
-    const putObject = jest.fn().mockImplementation((input, callback) => {
-      callback(null, {})
-    })
-    AWSMock.mock('S3', 'putObject', putObject)
-
-    const mockRegisterTaskDefinitionResult = mock<
-      PromiseResult<ECS.RegisterTaskDefinitionResponse, AWSError>
-    >({
-      taskDefinition: {
+    const tearDownTaskDefinition = jest.fn()
+    const taskDefinitionResource = mock<TaskDefinitionResource>({
+      tearDown: tearDownTaskDefinition,
+      taskDefinition: mock<ECS.TaskDefinition>({
         family: 'family',
         cpu: ecsExecutionSettings.cpu,
         memory: ecsExecutionSettings.memory,
@@ -119,164 +100,101 @@ describe('AWSECSRemoteEnvironment', () => {
             }
           }
         ]
-      }
-    })
-    const registerTaskDefinition = jest
-      .fn()
-      .mockImplementation((input, callback) => {
-        callback(null, mockRegisterTaskDefinitionResult)
       })
-    AWSMock.mock('ECS', 'registerTaskDefinition', registerTaskDefinition)
-
-    const mockRunTaskResult = mock<
-      PromiseResult<ECS.RunTaskResponse, AWSError>
-    >({
-      tasks: [
-        {
-          taskArn: 'ecsTaskArn'
-        }
-      ]
-    })
-    const runTask = jest.fn().mockImplementation((input, callback) => {
-      callback(null, mockRunTaskResult)
-    })
-    AWSMock.mock('ECS', 'runTask', runTask)
-
-    AWSMock.mock('ECS', 'waitFor', '')
-
-    const mockGetLogEventsResult = mock<
-      PromiseResult<CloudWatchLogs.GetLogEventsResponse, AWSError>
-    >({
-      nextForwardToken: 'nextForwardToken',
-      events: [
-        {
-          message: 'someLog'
-        }
-      ]
-    })
-    const getLogEvents = jest.fn().mockImplementation((input, callback) => {
-      callback(null, mockGetLogEventsResult)
     })
 
-    AWSMock.mock('CloudWatchLogs', 'getLogEvents', getLogEvents)
-
-    const mockDescribeTasksResult = mock<
-      PromiseResult<ECS.DescribeTasksResponse, AWSError>
-    >({
-      tasks: [
-        {
-          lastStatus: 'STOPPED',
-          containers: [
-            {
-              exitCode: 0,
-              name: ecsExecutionSettings.uniqueExecutionId
-            }
-          ]
-        }
-      ]
-    })
-    const describeTasks = jest.fn().mockImplementation((input, callback) => {
-      callback(null, mockDescribeTasksResult)
-    })
-    AWSMock.mock('ECS', 'describeTasks', describeTasks)
-
-    const deregisterTaskDefinition = jest
+    const createTaskDefinition = jest
       .fn()
-      .mockImplementation((input, callback) => {
-        callback(null, {})
-      })
-    AWSMock.mock('ECS', 'deregisterTaskDefinition', deregisterTaskDefinition)
+      .mockResolvedValue(taskDefinitionResource)
 
-    const deleteLogStream = jest.fn().mockImplementation((input, callback) => {
-      callback(null, {})
-    })
-    AWSMock.mock('CloudWatchLogs', 'deleteLogStream', deleteLogStream)
-
-    const mockListObjectsResult = mock<
-      PromiseResult<S3.ListObjectsV2Output, AWSError>
-    >({
-      Contents: [
-        {
-          Key: 'filename'
-        }
-      ]
-    })
-    const listObjectsV2 = jest.fn().mockImplementation((input, callback) => {
-      callback(null, mockListObjectsResult)
+    const ecsTask = mock<ECS.Task>({
+      taskArn: 'taskArn'
     })
 
-    AWSMock.mock('S3', 'listObjectsV2', listObjectsV2)
+    const runTaskAndWaitUntilRunning = jest.fn().mockResolvedValue(ecsTask)
 
-    const deleteBucket = jest.fn().mockImplementation((input, callback) => {
-      callback(null, {})
-    })
-
-    const deleteObject = jest.fn().mockImplementation((input, callback) => {
-      callback(null, {})
-    })
-    AWSMock.mock('S3', 'deleteObject', deleteObject)
-    AWSMock.mock('S3', 'deleteBucket', deleteBucket)
-
-    const mockCreateSecurityGroupResponse = mock<
-      PromiseResult<EC2.CreateSecurityGroupResult, AWSError>
-    >({
-      GroupId: `mockedGroupId`
-    })
-    const createSecurityGroup = jest
-      .fn()
-      .mockImplementation((input, callback) => {
-        callback(null, mockCreateSecurityGroupResponse)
-      })
-
-    AWSMock.mock(`EC2`, `createSecurityGroup`, createSecurityGroup)
-
-    const deleteSecurityGroup = jest
-      .fn()
-      .mockImplementation((input, callback) => {
-        return callback(null, {})
-      })
-    AWSMock.mock(`EC2`, `deleteSecurityGroup`, deleteSecurityGroup)
-
-    const mockedDescribeSubnetResult = mock<
-      PromiseResult<EC2.DescribeSubnetsResult, AWSError>
-    >({
-      Subnets: [{SubnetId: 'subnet1'}, {SubnetId: 'subnet2'}]
-    })
-    const describeSubnets = jest.fn().mockImplementation((input, callback) => {
-      callback(null, mockedDescribeSubnetResult)
-    })
-    AWSMock.mock('EC2', 'describeSubnets', describeSubnets)
-
-    const s3SyncFn = jest.fn()
-
-    ;(S3SyncClient as jest.Mock).mockImplementation(() => {
+    ;(ContainerService as any).mockImplementation(() => {
       return {
-        sync: s3SyncFn
+        getOrCreateCluster,
+        runTaskAndWaitUntilRunning,
+        createTaskDefinition,
+        deleteTaskDefinition: jest.fn()
       }
     })
+
+    const tearDownBucket = jest.fn()
+
+    const createdBucketResource = mock<BucketResource>({
+      bucketName: ecsExecutionSettings.uniqueExecutionId,
+      tearDown: tearDownBucket
+    })
+    const createBucket = jest.fn().mockResolvedValue(createdBucketResource)
+
+    ;(BucketService as jest.Mock).mockImplementation(() => {
+      return {
+        createBucket,
+        deleteBucket: jest.fn(),
+        syncUp: jest.fn(),
+        syncDown: jest.fn()
+      }
+    })
+
+    const subnetIds = ['subnet1', 'subnet-2']
+
+    const findSubnetIds = jest.fn().mockResolvedValue(subnetIds)
+
+    const tearDownSecurityGroup = jest.fn()
+    const securityGroupResource = mock<SecurityGroupResource>({
+      securityGroupId: 'security-group-id',
+      tearDown: tearDownSecurityGroup
+    })
+
+    const getOrCreateSecurityGroup = jest
+      .fn()
+      .mockResolvedValue(securityGroupResource)
+
+    ;(NetworkService as jest.Mock).mockImplementation(() => {
+      return {
+        findSubnetIds,
+        getOrCreateSecurityGroup,
+        deleteSecurityGroup: jest.fn()
+      }
+    })
+
+    const tearDownLogs = jest.fn()
+    const finishedTaskResource = mock<FinishedTaskResource>({
+      tearDown: tearDownLogs,
+      task: mock<ECS.Task>({
+        lastStatus: 'STOPPED',
+        containers: [
+          {
+            exitCode: containerExitCode,
+            name: ecsExecutionSettings.uniqueExecutionId
+          }
+        ]
+      })
+    })
+    const streamLogsUntilStopped = jest
+      .fn()
+      .mockResolvedValue(finishedTaskResource)
+
+    ;(LogStreamingService as jest.Mock).mockImplementation(() => {
+      return {
+        streamLogsUntilStopped,
+        deleteLogStream: jest.fn()
+      }
+    })
+
     return {
       Sut: AWSECSRemoteEnvironment,
       region,
       webIdentityToken,
       roleArn,
       ecsExecutionSettings,
-      mockCreateBucketResult,
-      mockDescribeTasksResult,
-      mockGetLogEventsResult,
-      mockRegisterTaskDefinitionResult,
-      mockRunTaskResult,
-      mockedAwsCredentials,
-      mockedCreateClusterResult,
-      mockedDescribeClusterResult,
-      mockedEcsCluster,
-      mockedDescribeSubnetResult,
-      s3SyncFn,
-      deregisterTaskDefinition,
-      deleteLogStream,
-      deleteBucket,
-      deleteObject,
-      deleteSecurityGroup,
-      describeSubnets
+      tearDownLogs,
+      tearDownTaskDefinition,
+      tearDownBucket,
+      tearDownSecurityGroup
     }
   }
 
@@ -297,37 +215,12 @@ describe('AWSECSRemoteEnvironment', () => {
       })
       // Then
       expect(receivedResult.exitCode).toBe(0)
-    }, 10000)
+    })
 
-    it('correctly runs the ECS Task, execute the remote code, and return the status, when ECS Cluster already exists', async () => {
-      // Given
-      const {
-        Sut,
-        region,
-        roleArn,
-        webIdentityToken,
-        ecsExecutionSettings,
-        mockedDescribeClusterResult
-      } = makeSut()
-      mockedDescribeClusterResult.clusters = [{clusterName: 'existing-cluster'}]
-      // When
-      const awsEcsRemoteEnvironment = await Sut.fromGithubOidc({
-        region,
-        roleArn,
-        webIdentityToken
-      })
-
-      const receivedResult = await awsEcsRemoteEnvironment.execute({
-        settings: ecsExecutionSettings
-      })
-      // Then
-      expect(receivedResult.exitCode).toBe(0)
-    }, 10000)
-
-    it('correctly creates the security group, if no securityGroupId is provided', async () => {
+    it('should return exit code 1 if one of the containers fail', async () => {
       // Given
       const {Sut, region, roleArn, webIdentityToken, ecsExecutionSettings} =
-        makeSut({securityGroupId: ''})
+        makeSut({}, 1)
       // When
       const awsEcsRemoteEnvironment = await Sut.fromGithubOidc({
         region,
@@ -339,26 +232,8 @@ describe('AWSECSRemoteEnvironment', () => {
         settings: ecsExecutionSettings
       })
       // Then
-      expect(receivedResult.exitCode).toBe(0)
-    }, 10000)
-
-    it('correctly finds all subnetIds, if no subnetId is provided', async () => {
-      // Given
-      const {Sut, region, roleArn, webIdentityToken, ecsExecutionSettings} =
-        makeSut({subnetIds: []})
-      // When
-      const awsEcsRemoteEnvironment = await Sut.fromGithubOidc({
-        region,
-        roleArn,
-        webIdentityToken
-      })
-
-      const receivedResult = await awsEcsRemoteEnvironment.execute({
-        settings: ecsExecutionSettings
-      })
-      // Then
-      expect(receivedResult.exitCode).toBe(0)
-    }, 10000)
+      expect(receivedResult.exitCode).toBe(1)
+    })
   })
 
   describe('tearDown', () => {
@@ -370,12 +245,11 @@ describe('AWSECSRemoteEnvironment', () => {
         roleArn,
         webIdentityToken,
         ecsExecutionSettings,
-        deleteObject,
-        deleteBucket,
-        deleteLogStream,
-        deregisterTaskDefinition,
-        deleteSecurityGroup
-      } = makeSut({securityGroupId: ''})
+        tearDownBucket,
+        tearDownLogs,
+        tearDownSecurityGroup,
+        tearDownTaskDefinition
+      } = makeSut()
       // When
       const awsEcsRemoteEnvironment = await Sut.fromGithubOidc({
         region,
@@ -390,11 +264,10 @@ describe('AWSECSRemoteEnvironment', () => {
       await awsEcsRemoteEnvironment.tearDown()
       // Then
       expect(receivedResult.exitCode).toBe(0)
-      expect(deleteLogStream).toHaveBeenCalled()
-      expect(deregisterTaskDefinition).toHaveBeenCalled()
-      expect(deleteObject).toHaveBeenCalled()
-      expect(deleteBucket).toHaveBeenCalled()
-      expect(deleteSecurityGroup).toHaveBeenCalled()
+      expect(tearDownBucket).toHaveBeenCalled()
+      expect(tearDownLogs).toHaveBeenCalled()
+      expect(tearDownSecurityGroup).toHaveBeenCalled()
+      expect(tearDownTaskDefinition).toHaveBeenCalled()
     }, 10000)
   })
 
@@ -407,6 +280,19 @@ describe('AWSECSRemoteEnvironment', () => {
         region,
         roleArn,
         webIdentityToken
+      })
+      // Then
+      expect(receivedInstance).toBeInstanceOf(AWSECSRemoteEnvironment)
+    })
+  })
+
+  describe('fromDefault', () => {
+    it('returns an instance of AWSECSRemoteEnvironment', async () => {
+      // Given
+      const {Sut, region, roleArn} = makeSut()
+      // When
+      const receivedInstance = await Sut.fromDefault({
+        region
       })
       // Then
       expect(receivedInstance).toBeInstanceOf(AWSECSRemoteEnvironment)
