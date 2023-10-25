@@ -13,16 +13,25 @@ export interface RunCodeInRemoteEnvironmentOutput {
   executionResult: ExecutionResult
 }
 
+export interface RunCodeInRemoteEnvironmentInput<Settings> {
+  settings: Settings
+  tearDown: boolean
+}
+
 export class RunCodeInRemoteEnvironment
-  implements UseCase<ExecutionSettings, ExecutionResult>
+  implements UseCase<RunCodeInRemoteEnvironmentInput<unknown>, ExecutionResult>
 {
   constructor(
     private readonly dependencies: RunCodeInRemoteEnvironmentDependencies
   ) {}
 
-  async run<T extends ExecutionSettings>(
+  async run<T extends ExecutionSettings>({
+    settings,
+    tearDown
+  }: {
     settings: T
-  ): Promise<ExecutionResult> {
+    tearDown: boolean
+  }): Promise<ExecutionResult> {
     const {remoteEnvironment} = this.dependencies
 
     try {
@@ -30,7 +39,9 @@ export class RunCodeInRemoteEnvironment
     } catch (error) {
       throw error
     } finally {
-      await remoteEnvironment.tearDown()
+      if (tearDown) {
+        await remoteEnvironment.tearDown({settings})
+      }
     }
   }
 }
