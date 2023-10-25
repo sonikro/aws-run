@@ -1,6 +1,6 @@
-name: 'aws-run'
-description: 'Runs a shellscript inside of an AWS VPC'
-author: 'Jonathan Nagayoshi'
+name: aws-run
+description: Runs a remote workload inside of an AWS VPC using ECS Fargate Tasks
+author: Jonathan Nagayoshi
 inputs:
   role_arn:
     required: true
@@ -45,7 +45,30 @@ inputs:
   vpc_id:
     required: true
     description: VPC ID of where the Task will be executed
-  
+  tags:
+    required: false
+    description: A multiline string in the format of KEY=VALUE of custom tags to be added to all resources created on AWS
+  polling_interval:
+    required: false
+    default: 2
+    description: The amount of time (in seconds) between polling cloudwatch logs.
+  post_complete_log_cycles:
+    required: false
+    default: 4
+    description: Number of polling cycles to try getting logs after the ecs task completes.
+  upload_includes:
+    required: false
+    description: Array of string paths to include while uploading the runner workspace to the ECS Task. Excludes apply before includes. See https://docs.aws.amazon.com/cli/latest/reference/s3/#use-of-exclude-and-include-filters
+  upload_excludes:
+    required: false
+    description: Array of string paths to exclude while uploading the runner workspace to the ECS Task. Excludes apply before includes. See https://docs.aws.amazon.com/cli/latest/reference/s3/#use-of-exclude-and-include-filters
+  download_includes:
+    required: false
+    description: Array of string paths to include while downloading the runner workspace from the ECS Task. Excludes apply before includes. See https://docs.aws.amazon.com/cli/latest/reference/s3/#use-of-exclude-and-include-filters
+  download_excludes:
+    required: false
+    description: Array of string paths to exclude while downloading the runner workspace from the ECS Task. Excludes apply before includes. See https://docs.aws.amazon.com/cli/latest/reference/s3/#use-of-exclude-and-include-filters
 runs:
   using: 'node16'
   main: 'dist/index.js'
+  post: 'dist/cleanup/index.js'
