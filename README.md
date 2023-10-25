@@ -91,57 +91,92 @@ The policy attattched to this role must have at least these permissions:
 
 ```json
 {
-    "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "VisualEditor0",
-            "Effect": "Allow",
             "Action": [
-                "ecs:DescribeClusters",
-                "ecs:DeregisterTaskDefinition",
-                "ecs:UpdateCluster",
-                "ecs:RunTask",
-                "ecs:ExecuteCommand",
-                "ecs:CreateCluster",
-                "ecs:RegisterTaskDefinition",
-                "ecs:DeleteCluster",
-                "ecs:StopTask",
-                "ecs:DeleteTaskDefinitions",
-                "ecs:TagResource",
-                "ecs:UntagResource",
-                "ecs:ListTaskDefinitions",
-                "ecs:ListClusters",
-                "ecs:ListTasks",
-                "ecs:DescribeTaskDefinition",
-                "ecs:DescribeTasks",
-                "iam:PassRole",
-                "logs:CreateLogGroup",
-                "logs:GetLogEvents",
-                "s3:*",
-                "ec2:DescribeSecurityGroups",
-                "ec2:DescribeSecurityGroupRules",
-                "ec2:AuthorizeSecurityGroupEgress",
                 "ec2:CreateSecurityGroup",
-                "ec2:AuthorizeSecurityGroupIngress",
-                "ec2:DeleteSecurityGroup",
-          			"ec2:DescribeSubnets"
+                "ec2:CreateTags",
+                "ecs:DeregisterTaskDefinition",
+                "ecs:RegisterTaskDefinition",
+                "ecs:DescribeTasks",
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "s3:CreateBucket",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets"
             ],
-            "Resource": "*"
+            "Effect": "Allow",
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:iam::ACCOUNT_NUMBER:role/*aws-run*"
+            ]
+        },
+        {
+            "Action": [
+                "ecs:DeleteTaskDefinitions",
+                "ecs:DeregisterContainerInstance",
+                "ecs:RegisterContainerInstance",
+                "ecs:RunTask",
+                "ecs:DescribeClusters"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:ecs:*:ACCOUNT_NUMBER:*/*aws-run*"
+            ]
         },
         {
             "Effect": "Allow",
             "Action": [
-                "ecr:GetAuthorizationToken",
-                "ecr:BatchCheckLayerAvailability",
-                "ecr:GetDownloadUrlForLayer",
-                "ecr:BatchGetImage",
-                "logs:CreateLogStream",
-                "logs:PutLogEvents",
-                "logs:DeleteLogStream"
+                "ecs:StopTask",
+                "ecs:ListTasks"
             ],
+            "Resource": [
+                "*"
+            ],
+            "Condition": {
+                "StringLike": {
+                    "ecs:cluster": [
+                        "arn:aws:ecs:*:ACCOUNT_NUMBER:cluster/github-actions-aws-run"
+                    ]
+                }
+            }
+        },
+        {
+            "Action": [
+                "logs:DeleteLogStream",
+                "logs:Get*"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:logs:*:ACCOUNT_NUMBER:log-group:*aws-run*"
+            ]
+        },
+        {
+            "Action": [
+                "s3:*"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:s3:::*aws-run*"
+            ]
+        },
+        {
+            "Action": [
+                "ec2:DeleteSecurityGroup"
+            ],
+            "Effect": "Allow",
             "Resource": "*"
         }
-    ]
+    ],
+    "Version": "2012-10-17"
 }
 ```
 ### Usage in your workflow
