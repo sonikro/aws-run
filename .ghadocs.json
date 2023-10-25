@@ -1,0 +1,17 @@
+{
+  "paths": {
+    "action": "action.yml",
+    "readme": "README.md"
+  },
+  "show_logo": true,
+  "versioning": {
+    "enabled": true,
+    "override": "",
+    "prefix": "v",
+    "branch": "main"
+  },
+  "owner": "sonikro",
+  "repo": "aws-run",
+  "title_prefix": "GitHub Action: ",
+  "pretty": true
+}
