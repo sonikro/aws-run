@@ -1,0 +1,30 @@
+
+name: DevContainer Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+        - .github/workflows/devcontainer.yml
+        - .devcontainer/**
+  push:
+    branches:
+      - main
+    paths:
+        - .github/workflows/devcontainer.yml
+        - .devcontainer/**
+
+jobs:
+  build-devcontainer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate DevContainer Environment
+        uses: devcontainers/ci@v0.3
+        with:
+            push: never
+            runCmd: CI=true npm run test && npm run build
