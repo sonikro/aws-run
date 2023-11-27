@@ -1,6 +1,10 @@
 <p align="center">
   <a href="https://github.com/sonikro/aws-run/actions"><img alt="aws-run-action status" src="https://github.com/sonikro/aws-run/workflows/build-test/badge.svg"></a>
+
 </p>
+
+[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/sonikro/aws-run)
+
 
 # Run code remotely in your AWS Account with GitHub Actions
 
